@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#F6F7F9">
+<title>记一笔 · 记账</title>
+<style>
+/* ===== 基础与配色 ===== */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#E9EBEF}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:#1F2329;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+#app{
+  max-width:430px;margin:0 auto;min-height:100vh;background:#F6F7F9;position:relative;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+  overflow-x:hidden;
+}
+.num{font-family:"SF Mono","DIN Alternate",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.muted{color:#9AA3AF}
+.red{color:#D9553F}
+.green{color:#1F9D55}
+.hint{font-size:12px;color:#9AA3AF;line-height:1.7;padding:8px 6px 20px}
+.section-gap{height:12px}
+
+/* ===== 顶栏 ===== */
+.topbar{
+  position:sticky;top:0;z-index:20;background:#F6F7F9;
+  display:flex;align-items:center;height:52px;padding:0 12px;
+}
+.topbar .back{width:36px;font-size:22px;color:#4E5969;cursor:pointer;line-height:36px}
+.topbar .title{font-size:17px;font-weight:600;flex:1;text-align:center;margin-right:36px}
+.topbar .title.left{text-align:left;margin-right:0}
+
+/* ===== 卡片 ===== */
+.card{background:#fff;border-radius:12px;padding:14px;margin:0 12px 12px;box-shadow:0 1px 6px rgba(31,35,41,.04)}
+.card.flat{padding:0;overflow:hidden}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 10px}
+.section-title{font-size:14px;font-weight:600}
+.section-extra{font-size:12px;color:#9AA3AF;cursor:pointer}
+.line{height:1px;background:#EDEFF2}
+
+/* ===== 首页月份条与概览 ===== */
+.month-bar{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 12px 14px}
+.month-bar .arrow{width:36px;height:36px;line-height:34px;text-align:center;font-size:20px;color:#86909C;cursor:pointer;border-radius:8px}
+.month-bar .arrow:active{background:#EDEFF2}
+.month-input{
+  border:0;background:transparent;font-size:16px;font-weight:600;color:#1F2329;
+  text-align:center;width:132px;font-family:inherit;appearance:none;-webkit-appearance:none;
+}
+.overview{display:flex;align-items:center;padding:18px 4px}
+.overview .col{flex:1;text-align:center;min-width:0}
+.overview .label{font-size:11px;color:#9AA3AF;margin-bottom:6px}
+.overview .value{font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden}
+.overview .vline{width:1px;height:26px;background:#EDEFF2}
+
+/* ===== 按日分组列表 ===== */
+.day-group{background:#fff;border-radius:12px;margin:0 12px 10px;overflow:hidden}
+.day-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 4px}
+.day-head .d{font-size:12px;color:#86909C}
+.day-head .s{font-size:12px;color:#86909C}
+.day-head .s b{color:#1F9D55;font-weight:500}
+.txn{display:flex;align-items:center;padding:10px 12px;cursor:pointer;border-radius:8px}
+.txn:active{background:#FAFBFC}
+.txn.transfer-row{background:#F7F8FA;margin:2px 4px;border-radius:8px}
+.txn .ico{
+  width:36px;height:36px;border-radius:8px;background:#F2F4F6;
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0
+}
+.txn .main{flex:1;min-width:0;margin-left:10px}
+.txn .t{font-size:15px;color:#1F2329;font-weight:500;display:flex;align-items:center;gap:6px}
+.txn .tag{font-size:10px;font-weight:400;color:#B57A1E;background:#FDF3E3;border-radius:4px;padding:1px 5px}
+.txn .tag.done{color:#1F9D55;background:#EAF6EF}
+.txn .sub{font-size:12px;color:#9AA3AF;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txn .amt{font-size:16px;font-weight:600;margin-left:8px}
+
+/* ===== 底部主按钮区 ===== */
+.bottom-bar{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;
+  background:#fff;padding:8px 12px calc(8px + env(safe-area-inset-bottom));z-index:30;
+  display:flex;gap:8px;box-shadow:0 -1px 8px rgba(31,35,41,.06);
+}
+.bottom-bar.has-tab{bottom:var(--tabh,42px)}
+.btn{height:46px;line-height:46px;border-radius:10px;text-align:center;font-size:16px;font-weight:600;cursor:pointer;border:0;font-family:inherit}
+.btn.primary{background:#1F6F5C;color:#fff;flex:1}
+.btn.primary:active{background:#185946}
+.btn.ghost{width:76px;background:#fff;color:#1F6F5C;border:1px solid #D8E2DE;font-size:14px}
+.btn.disabled{background:#C8D3CF;color:#fff}
+.btn.small{height:34px;line-height:34px;font-size:13px;padding:0 14px;border-radius:8px;font-weight:500}
+
+/* ===== 标签页 ===== */
+.tabbar{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;
+  display:flex;background:#fff;z-index:40;padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -1px 8px rgba(31,35,41,.06);
+}
+.tabbar .tab{flex:1;text-align:center;padding:9px 0 8px;font-size:13px;color:#9AA3AF;cursor:pointer}
+.tabbar .tab.on{color:#1F6F5C;font-weight:600}
+
+/* ===== 统计 ===== */
+.mode-row{display:flex;align-items:center;justify-content:space-between;padding:4px 12px 14px}
+.mode-switch{display:flex;background:#fff;border-radius:8px;padding:3px}
+.mode-switch .m{width:38px;height:26px;line-height:26px;text-align:center;font-size:12px;color:#4E5969;border-radius:6px;cursor:pointer}
+.mode-switch .m.on{background:#E7F1EE;color:#1F6F5C;font-weight:600}
+.period-nav{display:flex;align-items:center}
+.summary-grid{display:flex;flex-wrap:wrap}
+.summary-grid .item{width:50%;padding:6px 0}
+.summary-grid .k{font-size:11px;color:#9AA3AF}
+.summary-grid .v{font-size:19px;font-weight:700;margin-top:2px}
+canvas{display:block;width:100%}
+.legend-row{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #F7F8FA;font-size:13px;cursor:pointer}
+.legend-row:active{background:#FAFBFC}
+.legend-row:last-child{border-bottom:0}
+.legend-row .chev{color:#B9C0C9;font-size:13px;margin-left:3px}
+.dot{width:7px;height:7px;border-radius:50%;margin-right:7px;flex-shrink:0}
+.legend-row .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend-row .p{width:48px;text-align:right;color:#86909C;font-size:12px}
+.legend-row .a{width:86px;text-align:right;font-weight:500}
+.empty-inline{padding:26px 0;text-align:center;font-size:12px;color:#9AA3AF}
+.budget-row{padding:8px 0}
+.budget-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.bar{height:6px;border-radius:3px;background:#F2F4F6;overflow:hidden}
+.bar .fill{height:6px;background:#1F6F5C;border-radius:3px}
+.bar .fill.over{background:#D9553F}
+.budget-tip{font-size:11px;color:#9AA3AF;margin-top:5px}
+
+/* ===== 记一笔 ===== */
+.tabs5{display:flex;background:#fff;border-radius:10px;padding:4px;margin:0 12px}
+.tabs5 .t{flex:1;height:34px;line-height:34px;text-align:center;font-size:13px;color:#4E5969;border-radius:7px;cursor:pointer}
+.tabs5 .t.on{background:#E7F1EE;color:#1F6F5C;font-weight:600}
+.amount-area{text-align:center;padding:22px 0 4px}
+.amount-area .v{font-size:38px;font-weight:700;line-height:1.2}
+.amount-area .v.income{color:#1F9D55}
+.amount-area .v.plain{color:#4E5969}
+.amount-area .u{font-size:12px;color:#9AA3AF;margin-left:4px}
+.type-hint{text-align:center;font-size:11px;color:#9AA3AF;padding-bottom:12px}
+.cat-grid{display:flex;flex-wrap:wrap}
+.cat-cell{width:25%;padding:8px 2px 10px;text-align:center;border-radius:8px;cursor:pointer}
+.cat-cell.on{background:#E7F1EE}
+.cat-cell .i{font-size:20px;line-height:1.2}
+.cat-cell .n{font-size:11px;color:#4E5969;margin-top:4px}
+.cat-cell.on .n{color:#1F6F5C;font-weight:600}
+.field{padding:12px 0}
+.field-label{font-size:13px;color:#4E5969}
+.field-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{height:30px;line-height:30px;padding:0 14px;border-radius:15px;background:#F2F4F6;color:#4E5969;font-size:12px;cursor:pointer}
+.chip.on{background:#E7F1EE;color:#1F6F5C;font-weight:600}
+
+/* ===== 搜索 ===== */
+.search-bar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #EDEFF2;border-radius:10px;margin:0 12px 12px;height:40px;padding:0 12px;cursor:pointer}
+.search-bar .ic{font-size:14px;color:#9AA3AF}
+.search-bar .ph{font-size:13px;color:#BFC5CE;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-bar input{flex:1;border:0;background:transparent;outline:none;font-size:13px;font-family:inherit;min-width:0;color:#1F2329}
+.search-bar input::placeholder{color:#BFC5CE}
+.search-bar .clr{font-size:12px;color:#9AA3AF;cursor:pointer;padding:2px}
+.search-head{position:sticky;top:0;z-index:20;background:#F6F7F9;display:flex;align-items:center;gap:8px;padding:6px 12px 10px}
+.search-head .back{width:26px;font-size:22px;color:#4E5969;cursor:pointer;line-height:36px}
+.search-head .box{flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #EDEFF2;border-radius:10px;height:38px;padding:0 10px}
+.search-head .box input{flex:1;border:0;background:transparent;outline:none;font-size:13px;font-family:inherit;min-width:0;color:#1F2329}
+.search-head .box input::placeholder{color:#BFC5CE}
+.search-head .box .ic{font-size:14px;color:#9AA3AF}
+.sel{border:0;background:#F2F4F6;border-radius:8px;height:30px;font-size:12px;color:#1F2329;padding:0 8px;font-family:inherit;max-width:190px}
+.txt{border:0;background:transparent;font-size:13px;color:#1F2329;text-align:right;flex:1;font-family:inherit;outline:none;min-width:0}
+.txt.left{text-align:left}
+.txt::placeholder{color:#C0C6CF}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#4E5969}
+.switch{position:relative;width:44px;height:24px;border-radius:12px;background:#DDE1E6;cursor:pointer;transition:background .2s}
+.switch.on{background:#1F6F5C}
+.switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s}
+.switch.on .knob{left:22px}
+
+/* ===== 自定义键盘 ===== */
+.keypad{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;
+  background:#fff;padding:6px 8px calc(6px + env(safe-area-inset-bottom));z-index:25;
+  box-shadow:0 -1px 10px rgba(31,35,41,.06);
+}
+.keypad .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.key{height:44px;line-height:44px;text-align:center;font-size:20px;font-weight:600;background:#F2F4F6;border-radius:8px;cursor:pointer;color:#1F2329}
+.key:active{background:#E7F1EE}
+.key.fn{font-size:16px;color:#4E5969}
+.keypad .ok{margin-top:6px;height:44px;line-height:44px;text-align:center;border-radius:8px;background:#1F6F5C;color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+.keypad .ok.disabled{background:#C8D3CF}
+
+/* ===== 详情 ===== */
+.head-card{text-align:center;padding:22px 14px}
+.head-card .k{font-size:11px;color:#9AA3AF}
+.head-card .v{font-size:34px;font-weight:700;margin-top:4px}
+.row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F2F4F6;font-size:13px;gap:12px}
+.row:last-child{border-bottom:0}
+.row .k{color:#86909C;flex-shrink:0}
+.row .v{text-align:right;word-break:break-all}
+.row-list{padding:0 14px}
+
+/* ===== 通用列表页 ===== */
+.list-item{background:#fff;border-radius:12px;padding:12px 14px;margin:0 12px 10px;display:flex;align-items:center;gap:10px}
+.list-item .grow{flex:1;min-width:0}
+.list-item .nm{font-size:15px;font-weight:600}
+.list-item .sb{font-size:11px;color:#9AA3AF;margin-top:2px}
+.list-item .right{text-align:right;font-size:15px;font-weight:600}
+.mini-btn{font-size:11px;color:#9AA3AF;border:1px solid #E5E6EB;border-radius:6px;padding:2px 8px;cursor:pointer}
+
+/* ===== 弹层 ===== */
+.mask{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(31,35,41,.45);z-index:60}
+.sheet{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;
+  background:#fff;border-radius:16px 16px 0 0;z-index:70;max-height:82vh;display:flex;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom);animation:up .18s ease-out;
+}
+@keyframes up{from{transform:translateX(-50%) translateY(12px);opacity:.6}to{transform:translateX(-50%) translateY(0);opacity:1}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 6px}
+.sheet-head .t{font-size:15px;font-weight:600}
+.sheet-head .x{font-size:12px;color:#9AA3AF;cursor:pointer;padding:4px}
+.sheet-body{overflow-y:auto;padding:0 14px 8px;-webkit-overflow-scrolling:touch}
+.sheet-foot{padding:10px 14px 14px}
+.sheet-note{font-size:12px;color:#86909C;padding:2px 14px 8px}
+.confirm-box{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(300px,86vw);
+  background:#fff;border-radius:14px;z-index:70;padding:18px 16px 12px;text-align:center;
+}
+.confirm-box .t{font-size:16px;font-weight:600}
+.confirm-box .d{font-size:13px;color:#4E5969;margin-top:8px;line-height:1.7}
+.confirm-actions{display:flex;gap:10px;margin-top:16px}
+.confirm-actions .c{flex:1;height:40px;line-height:40px;border-radius:9px;background:#F2F4F6;color:#4E5969;font-size:14px;cursor:pointer}
+.confirm-actions .c.danger{background:#FDECEA;color:#D9553F;font-weight:600}
+.confirm-actions .c.main{background:#1F6F5C;color:#fff;font-weight:600}
+
+/* ===== 分摊弹层 ===== */
+.split-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F2F4F6}
+.check{width:20px;height:20px;border-radius:50%;border:1px solid #D8DEE6;line-height:18px;text-align:center;font-size:11px;color:transparent;flex-shrink:0;cursor:pointer}
+.check.on{background:#1F6F5C;border-color:#1F6F5C;color:#fff}
+.split-row .sn{flex:1;font-size:13px}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper .b{width:24px;height:24px;line-height:22px;text-align:center;border:1px solid #E5E6EB;border-radius:5px;font-size:14px;color:#4E5969;cursor:pointer}
+.stepper .v{min-width:18px;text-align:center;font-size:13px}
+.split-row .sa{min-width:72px;text-align:right;font-size:13px;font-weight:500}
+.split-mine{font-size:13px;color:#1F6F5C;font-weight:600}
+
+/* ===== 提示 ===== */
+.toast{
+  position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:rgba(31,35,41,.9);color:#fff;
+  font-size:13px;padding:9px 16px;border-radius:8px;z-index:90;max-width:80vw;text-align:center;
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/**
+ * 记一笔 · 网页版
+ * 口径与小程序版一致：金额整数分、方向靠 type、转账/借还/结算不进收支。
+ * 数据存 localStorage，只在这台设备的这个浏览器里。
+ */
+(function () {
+  'use strict';
+
+  // ========== 基础工具 ==========
+  const LS_KEY = 'jiyibi.v1';
+  const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const pad2 = n => String(n).padStart(2, '0');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  // 金额：一律整数分
+  function fmtC(cents) {
+    const v = Math.round(Number(cents) || 0);
+    const sign = v < 0 ? '-' : '';
+    const a = Math.abs(v);
+    return sign + Math.floor(a / 100) + '.' + pad2(a % 100);
+  }
+  function yuan(cents) {
+    const t = fmtC(cents);
+    return t.charAt(0) === '-' ? '-¥' + t.slice(1) : '¥' + t;
+  }
+  function signedYuan(cents, type) {
+    const a = fmtC(Math.abs(cents));
+    if (type === 'income') return '+¥' + a;
+    if (type === 'expense') return '-¥' + a;
+    return '¥' + a;
+  }
+  function parseYuan(raw) {
+    if (raw == null) return 0;
+    const text = String(raw).trim();
+    if (!text) return 0;
+    if (!/^\d*(\.\d*)?$/.test(text) || text === '.') throw new Error('金额格式不正确');
+    const parts = text.split('.');
+    const intPart = parts[0] || '0';
+    const decPart = parts[1] || '';
+    if (decPart.length > 2) throw new Error('金额最多两位小数');
+    if (intPart.length > 5) throw new Error('金额不能超过 99999.99');
+    const total = (parseInt(intPart, 10) || 0) * 100 + (parseInt((decPart + '00').slice(0, 2), 10) || 0);
+    if (total > 9999999) throw new Error('金额不能超过 99999.99');
+    return total;
+  }
+
+  // 日期：全部本地时区
+  function parsePeriod(p) {
+    const m = /^(\d{4})-(\d{2})$/.exec(String(p));
+    if (!m) throw new Error('月份格式错误');
+    return { y: Number(m[1]), m: Number(m[2]) };
+  }
+  function curPeriod() {
+    const d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  function shiftPeriod(p, delta) {
+    const { y, m } = parsePeriod(p);
+    const d = new Date(y, m - 1 + delta, 1);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  function monthRange(p) {
+    const { y, m } = parsePeriod(p);
+    return { start: new Date(y, m - 1, 1).getTime(), end: new Date(y, m, 1).getTime() };
+  }
+  function yearRange(year) {
+    const y = Number(year);
+    return { start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime() };
+  }
+  function monthLabel(p) {
+    const { y, m } = parsePeriod(p);
+    return y + '年' + m + '月';
+  }
+  function periodOf(ts) {
+    const d = new Date(Number(ts));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  function dayKey(ts) {
+    const d = new Date(Number(ts));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function dayLabel(ts) {
+    const d = new Date(Number(ts));
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + WEEK[d.getDay()];
+  }
+  function fmtDate(ts) {
+    const d = new Date(Number(ts));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function fmtDT(ts) {
+    if (!ts) return '';
+    const d = new Date(Number(ts));
+    return fmtDate(ts) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function todayTs() {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+  function fromDateText(text) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(text || ''));
+    if (!m) return todayTs();
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+  }
+
+  // ========== 记账口径（与小程序 utils/ledger.js 一致） ==========
+  const ledger = {
+    live(t) { return !!t && !t.deleted_at; },
+    myShare(txn, splits) {
+      const amount = Math.abs(Number(txn.amount_cents) || 0);
+      let others = 0;
+      (splits || []).forEach(s => {
+        if (s.transaction_id === txn.id && s.direction === 'they_owe') others += Math.abs(s.share_cents);
+      });
+      const mine = amount - others;
+      return mine > 0 ? mine : 0;
+    },
+    sumExpense(txns, splits, opts) {
+      const includePending = opts && opts.includePending;
+      let total = 0;
+      (txns || []).forEach(t => {
+        if (!ledger.live(t) || t.type !== 'expense') return;
+        if (!includePending && t.reimburse_status === 'pending') return;
+        total += ledger.myShare(t, splits);
+      });
+      return total;
+    },
+    sumIncome(txns) {
+      let total = 0;
+      (txns || []).forEach(t => {
+        if (!ledger.live(t) || t.type !== 'income') return;
+        total += Math.abs(t.amount_cents);
+      });
+      return total;
+    },
+    accountBalances(accounts, txns, settlements) {
+      const map = {};
+      accounts.forEach(a => { map[a.id] = Number(a.initial_balance_cents) || 0; });
+      const add = (id, c) => { if (id && map[id] !== undefined) map[id] += c; };
+      (txns || []).forEach(t => {
+        if (!ledger.live(t)) return;
+        const a = Math.abs(t.amount_cents);
+        if (t.type === 'expense') add(t.account_id, -a);
+        else if (t.type === 'income') add(t.account_id, a);
+        else if (t.type === 'loan_out') add(t.account_id, -a);
+        else if (t.type === 'loan_in') add(t.account_id, a);
+        else if (t.type === 'transfer') { add(t.account_id, -a); add(t.to_account_id, a); }
+      });
+      (settlements || []).forEach(s => {
+        if (!ledger.live(s)) return;
+        add(s.account_id, s.direction === 'in' ? s.amount_cents : -s.amount_cents);
+      });
+      return map;
+    },
+    personBalances(persons, txns, splits, settlements) {
+      const map = {};
+      persons.forEach(p => { map[p.id] = 0; });
+      const add = (id, c) => { if (id && map[id] !== undefined) map[id] += c; };
+      const liveMap = {};
+      (txns || []).forEach(t => { if (ledger.live(t)) liveMap[t.id] = t; });
+      (splits || []).forEach(s => {
+        if (!liveMap[s.transaction_id]) return;
+        add(s.person_id, s.direction === 'we_owe' ? -s.share_cents : s.share_cents);
+      });
+      (txns || []).forEach(t => {
+        if (!ledger.live(t)) return;
+        if (t.type === 'loan_out') add(t.person_id, Math.abs(t.amount_cents));
+        if (t.type === 'loan_in') add(t.person_id, -Math.abs(t.amount_cents));
+        if (t.type === 'expense' && t.reimburse_status && t.reimburse_status !== 'none') {
+          add(t.person_id, ledger.myShare(t, splits));
+        }
+      });
+      (settlements || []).forEach(s => {
+        if (!ledger.live(s)) return;
+        add(s.person_id, s.direction === 'in' ? -s.amount_cents : s.amount_cents);
+      });
+      return map;
+    },
+    /* 单笔借出/借入已还金额：认直接挂账的还款，也认整人结清时摊过来的部分 */
+    loanRepaid(txn, settlements) {
+      let sum = 0;
+      (settlements || []).forEach(s => {
+        if (!ledger.live(s)) return;
+        if (s.txn_id === txn.id) { sum += Math.abs(Number(s.amount_cents) || 0); return; }
+        const allocs = s.repay_allocs;
+        if (allocs && allocs.length) allocs.forEach(a => {
+          if (a.txn_id === txn.id) sum += Math.abs(Number(a.cents) || 0);
+        });
+      });
+      return Math.min(sum, Math.abs(Number(txn.amount_cents) || 0));
+    },
+    loanOutstanding(txn, settlements) {
+      return Math.max(0, Math.abs(Number(txn.amount_cents) || 0) - ledger.loanRepaid(txn, settlements));
+    },
+    savingRate(income, expense) {
+      if (income <= 0) return { value: null, text: '—' };
+      const v = ((income - expense) / income) * 100;
+      return { value: v, text: v.toFixed(1) + '%' };
+    },
+    byCategory(txns, splits, categories, type, opts) {
+      const includePending = opts && opts.includePending;
+      const sums = {};
+      (txns || []).forEach(t => {
+        if (!ledger.live(t) || t.type !== type) return;
+        if (type === 'expense' && !includePending && t.reimburse_status === 'pending') return;
+        const amount = type === 'expense' ? ledger.myShare(t, splits) : Math.abs(t.amount_cents);
+        const key = t.category_id || 'unknown';
+        sums[key] = (sums[key] || 0) + amount;
+      });
+      const total = Object.keys(sums).reduce((a, k) => a + sums[k], 0);
+      const dict = {};
+      categories.forEach(c => { dict[c.id] = c; });
+      return Object.keys(sums).map(k => {
+        const c = dict[k] || { name: '未分类', icon: '📦', color: '#9AA3AF' };
+        return {
+          id: k, name: c.name, icon: c.icon, color: c.color || '#1F6F5C',
+          amount_cents: sums[k],
+          percent: total > 0 ? Math.round((sums[k] / total) * 1000) / 10 : 0
+        };
+      }).sort((a, b) => b.amount_cents - a.amount_cents);
+    },
+    /* 最大余数法，余数给非付款人，付款人拿 floor */
+    allocateShares(totalCents, weights, payerIndex) {
+      const total = Math.round(totalCents || 0);
+      const w = weights || [];
+      const payer = payerIndex === undefined ? 0 : payerIndex;
+      const sumW = w.reduce((a, b) => a + Math.max(0, Math.round(b)), 0);
+      if (!w.length) return [];
+      if (sumW <= 0) { const z = w.map(() => 0); z[payer] = total; return z; }
+      const parts = [], rems = [];
+      let assigned = 0;
+      w.forEach((weight, i) => {
+        const ww = Math.max(0, Math.round(weight));
+        const exact = total * ww;
+        const share = Math.floor(exact / sumW);
+        parts[i] = share;
+        rems[i] = exact % sumW;
+        assigned += share;
+      });
+      let rest = total - assigned;
+      const order = [];
+      w.forEach((_, i) => { if (i !== payer) order.push(i); });
+      order.sort((a, b) => rems[b] - rems[a] || a - b);
+      order.push(payer);
+      const queue = order.concat(order);
+      for (let i = 0; i < queue.length && rest > 0; i++) { parts[queue[i]] += 1; rest -= 1; }
+      return parts;
+    }
+  };
+
+  // ========== 数据存储 ==========
+  let seq = 0;
+  function uid(prefix) {
+    seq += 1;
+    return prefix + '_' + Date.now().toString(36) + '_' + seq;
+  }
+
+  const COLORS = ['#1F6F5C', '#E8A33D', '#4E7BC7', '#C4674E', '#7A6BC4', '#3F9E8E',
+    '#B9586E', '#6E8B3D', '#8C6239', '#5C7A99', '#A35EA0', '#9AA3AF'];
+
+  const EXPENSE_CATS = [['餐饮', '🍜'], ['买菜', '🥬'], ['交通', '🚌'], ['居住', '🏠'],
+    ['水电燃气', '💡'], ['通讯', '📱'], ['购物', '🛍'], ['医疗', '💊'],
+    ['教育', '📚'], ['娱乐', '🎮'], ['人情', '🎁'], ['其他', '📦']];
+  const INCOME_CATS = [['工资', '💰'], ['奖金', '🏆'], ['兼职', '💼'],
+    ['红包', '🧧'], ['理财收入', '📈'], ['其他', '📦']];
+  const ACCOUNTS = [['现金', 'cash'], ['微信', 'wechat'], ['支付宝', 'alipay'], ['银行卡', 'bank'], ['信用卡', 'credit']];
+
+  function seedDb() {
+    const accounts = ACCOUNTS.map((a, i) => ({
+      id: uid('acc'), name: a[0], type: a[1], initial_balance_cents: 0, sort: i, archived: false
+    }));
+    let sort = 0;
+    const categories = [];
+    EXPENSE_CATS.forEach((c, i) => categories.push({
+      id: uid('cat'), name: c[0], icon: c[1], color: COLORS[i % COLORS.length],
+      type: 'expense', sort: sort++, is_system: true, archived: false
+    }));
+    INCOME_CATS.forEach((c, i) => categories.push({
+      id: uid('cat'), name: c[0], icon: c[1], color: COLORS[i % COLORS.length],
+      type: 'income', sort: sort++, is_system: true, archived: false
+    }));
+    return {
+      household: { name: '我的账本' },
+      accounts, categories, persons: [], txns: [], splits: [], settlements: [], budgets: [],
+      settings: { defaultAccountId: '', pendingIncluded: false, demoLoaded: false }
+    };
+  }
+
+  function normalize(d) {
+    const base = seedDb();
+    return {
+      household: d.household || base.household,
+      accounts: d.accounts || base.accounts,
+      categories: d.categories || base.categories,
+      persons: d.persons || [],
+      txns: d.txns || [],
+      splits: d.splits || [],
+      settlements: d.settlements || [],
+      budgets: d.budgets || [],
+      settings: Object.assign({ defaultAccountId: '', pendingIncluded: false, demoLoaded: false }, d.settings || {})
+    };
+  }
+
+  function loadDb() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) return normalize(JSON.parse(raw));
+    } catch (e) { /* 读不出来就重新初始化 */ }
+    return seedDb();
+  }
+  function saveDb() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(db)); } catch (e) { toast('本机存储写入失败'); }
+  }
+
+  let db = loadDb();
+
+  /* 老账本里的「结清」没有挂到具体借款上，这里按时间顺序把它们摊到未还的借出/借入，
+     保证「待收 / 待还」和往来余额一致；每次启动重算一遍，幂等。 */
+  function migrateLoanAllocs() {
+    let changed = false;
+    db.settlements.forEach(s => {
+      if (s && s.repay_allocs) { delete s.repay_allocs; changed = true; }
+    });
+    db.settlements.filter(s => !s.deleted_at && !s.txn_id)
+      .sort((a, b) => a.occurred_at - b.occurred_at)
+      .forEach(s => {
+        let rest = Math.abs(Number(s.amount_cents) || 0);
+        if (rest <= 0 || !s.person_id) return;
+        const loans = db.txns.filter(t => !t.deleted_at && t.person_id === s.person_id &&
+          ((s.direction === 'in' && t.type === 'loan_out') || (s.direction === 'out' && t.type === 'loan_in')))
+          .sort((a, b) => a.occurred_at - b.occurred_at);
+        const allocs = [];
+        loans.forEach(t => {
+          if (rest <= 0) return;
+          const out = ledger.loanOutstanding(t, db.settlements);
+          if (out <= 0) return;
+          const take = Math.min(out, rest);
+          allocs.push({ txn_id: t.id, cents: take });
+          s.repay_allocs = allocs.slice();
+          rest -= take;
+          changed = true;
+        });
+      });
+    return changed;
+  }
+
+  // ========== 查询辅助 ==========
+  const catOf = id => db.categories.find(c => c.id === id) || { name: '未分类', icon: '📦' };
+  const accOf = id => db.accounts.find(a => a.id === id) || { name: '账户' };
+  const perOf = id => db.persons.find(p => p.id === id) || { name: '对方' };
+  function txnsIn(start, end) {
+    return db.txns.filter(t => !t.deleted_at && t.occurred_at >= start && t.occurred_at < end);
+  }
+  function sortTxns(list) {
+    return list.slice().sort((a, b) => (b.occurred_at - a.occurred_at) || (b.created_at - a.created_at));
+  }
+  function visibleAccounts() { return db.accounts.filter(a => !a.archived).sort((a, b) => a.sort - b.sort); }
+  function activePersons() { return db.persons.filter(p => !p.archived); }
+
+  // ========== 视图状态 ==========
+  const state = {
+    view: 'home',
+    params: {},
+    period: curPeriod(),
+    statsMode: 'month',
+    draft: null,
+    draftKey: '',
+    modal: null,
+    toast: '',
+    stats: null,
+    pendingConfirm: null,
+    prevView: '',
+    kw: '',
+    searchType: 'all',
+    catKw: '',
+    catKey: '',
+    focusSearch: false
+  };
+
+  let toastTimer = null;
+  function toast(text) {
+    state.toast = text;
+    render();
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { state.toast = ''; render(); }, 1800);
+  }
+
+  function go(view, params) {
+    const qs = params ? Object.keys(params)
+      .filter(k => params[k] !== undefined && params[k] !== null && params[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&') : '';
+    const target = '#/' + view + (qs ? '?' + qs : '');
+    if (location.hash === target) { parseHash(); render(); }
+    else location.hash = target;
+  }
+
+  function parseHash() {
+    const raw = location.hash.replace(/^#\/?/, '');
+    const parts = raw.split('?');
+    const view = parts[0] || 'home';
+    const params = {};
+    if (parts[1]) {
+      parts[1].split('&').forEach(kv => {
+        const [k, v] = kv.split('=');
+        if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+    }
+    state.prevView = state.view;
+    state.view = views[view] ? view : 'home';
+    state.params = params;
+    if (state.view === 'category') {
+      const key = (params.type || 'expense') + ':' + (params.id || '');
+      if (state.catKey !== key) { state.catKw = ''; state.catKey = key; }
+    }
+    if (state.view === 'record' && state.prevView !== 'record') {
+      state.draft = null;
+      state.draftKey = '';
+    }
+    if (state.view !== 'record') state.modal = null;
+  }
+
+  // ========== 记一笔草稿 ==========
+  const TYPES = [
+    { key: 'expense', label: '支出' },
+    { key: 'income', label: '收入' },
+    { key: 'transfer', label: '转账' },
+    { key: 'loan_out', label: '借出' },
+    { key: 'loan_in', label: '借入' }
+  ];
+  const TYPE_HINTS = {
+    expense: '钱花出去了，计入本月支出',
+    income: '钱进来了，计入本月收入',
+    transfer: '自己的账户之间移动，不计入收支',
+    loan_out: '借给别人，变成应收，不计入支出',
+    loan_in: '向别人借钱，变成应付，不计入收入'
+  };
+  const TYPE_LABELS = { expense: '支出', income: '收入', transfer: '转账', loan_out: '借出', loan_in: '借入' };
+
+  function catsOf(type) {
+    return db.categories.filter(c => c.type === type && !c.archived).sort((a, b) => a.sort - b.sort);
+  }
+
+  // 选了「其他」且填了自定义名称时，取同名分类；没有就新建一个
+  function resolveCategoryId(d) {
+    const cat = db.categories.find(c => c.id === d.categoryId);
+    if (!cat || cat.name !== '其他') return d.categoryId || null;
+    const custom = (d.customName || '').trim();
+    if (!custom) return cat.id;
+    const exists = db.categories.find(c => c.type === cat.type && c.name === custom);
+    if (exists) return exists.id;
+    const sameType = db.categories.filter(c => c.type === cat.type);
+    const maxSort = sameType.reduce((m, c) => Math.max(m, c.sort || 0), 0);
+    const created = {
+      id: uid('cat'), type: cat.type, name: custom, icon: '🏷',
+      color: COLORS[sameType.length % COLORS.length],
+      sort: maxSort + 1, archived: false, created_at: Date.now(), deleted_at: null
+    };
+    db.categories.push(created);
+    return created.id;
+  }
+
+  function newDraft(type) {
+    const accounts = visibleAccounts();
+    const cats = catsOf(type);
+    return {
+      id: '',
+      type: type,
+      amountText: '',
+      categoryId: cats[0] ? cats[0].id : '',
+      accountId: db.settings.defaultAccountId && accounts.some(a => a.id === db.settings.defaultAccountId)
+        ? db.settings.defaultAccountId : (accounts[0] ? accounts[0].id : ''),
+      toAccountId: accounts[1] ? accounts[1].id : '',
+      personId: (type === 'loan_out' || type === 'loan_in') && activePersons()[0] ? activePersons()[0].id : '',
+      dateText: fmtDate(todayTs()),
+      note: '',
+      customName: '',
+      reimburse: false,
+      splits: activePersons().map(p => ({ person_id: p.id, checked: false, shares: 1 }))
+    };
+  }
+
+  function draftFromTxn(txn) {
+    const accounts = visibleAccounts();
+    const d = newDraft(txn.type);
+    d.id = txn.id;
+    d.amountText = fmtC(txn.amount_cents);
+    d.categoryId = txn.category_id || '';
+    d.accountId = txn.account_id;
+    d.toAccountId = txn.to_account_id || (accounts[1] ? accounts[1].id : '');
+    d.personId = txn.person_id || '';
+    d.dateText = fmtDate(txn.occurred_at);
+    d.note = txn.note || '';
+    d.reimburse = txn.reimburse_status === 'pending';
+    const old = db.splits.filter(s => s.transaction_id === txn.id && s.direction === 'they_owe');
+    d.splits = activePersons().map(p => {
+      const found = old.find(s => s.person_id === p.id);
+      return { person_id: p.id, checked: !!found, shares: 1 };
+    });
+    return d;
+  }
+
+  function ensureDraft() {
+    if (state.view !== 'record') return;
+    const key = location.hash;
+    if (state.draft && state.draftKey === key) return;
+    state.draftKey = key;
+    if (state.params.id) {
+      const txn = db.txns.find(t => t.id === state.params.id);
+      if (!txn) { state.draft = newDraft('expense'); return; }
+      state.draft = draftFromTxn(txn);
+    } else {
+      state.draft = newDraft(state.params.type || 'expense');
+    }
+  }
+
+  // ========== 渲染 ==========
+  const views = {
+    home: viewHome, record: viewRecord, detail: viewDetail, stats: viewStats,
+    settings: viewSettings, accounts: viewAccounts, categories: viewCategories,
+    persons: viewPersons, person: viewPersonDetail,
+    search: viewSearch, category: viewCategory
+  };
+
+  function render() {
+    ensureDraft();
+    const app = document.getElementById('app');
+    app.innerHTML = views[state.view]() + modalHtml() + (state.toast ? '<div class="toast">' + esc(state.toast) + '</div>' : '');
+    const tabbarEl = app.querySelector('.tabbar');
+    const barEl = app.querySelector('.bottom-bar') || app.querySelector('.keypad');
+    const tabh = tabbarEl ? tabbarEl.offsetHeight : 0;
+    document.documentElement.style.setProperty('--tabh', tabh + 'px');
+    app.style.paddingBottom = (tabh + (barEl ? barEl.offsetHeight : 0) + 18) + 'px';
+    afterRender();
+  }
+
+  function afterRender() {
+    if (state.view === 'stats') drawCharts();
+    if (state.view === 'search' && state.focusSearch) {
+      state.focusSearch = false;
+      const q = document.getElementById('q');
+      if (q) { q.focus(); const n = q.value.length; q.setSelectionRange(n, n); }
+    }
+  }
+
+  function tabbar() {
+    const items = [['home', '账单'], ['stats', '统计'], ['settings', '我的']];
+    return '<div class="tabbar">' + items.map(([k, label]) =>
+      '<div class="tab ' + (state.view === k ? 'on' : '') + '" data-act="tab" data-view="' + k + '">' + label + '</div>'
+    ).join('') + '</div>';
+  }
+
+  function topbar(title, showBack) {
+    return '<div class="topbar">' +
+      (showBack ? '<div class="back" data-act="back">‹</div>' : '') +
+      '<div class="title ' + (showBack ? '' : 'left') + '">' + esc(title) + '</div>' +
+      '</div>';
+  }
+
+  function txnIcon(txn) {
+    if (txn.type === 'transfer') return '🔁';
+    if (txn.type === 'loan_out') return '📤';
+    if (txn.type === 'loan_in') return '📥';
+    return catOf(txn.category_id).icon || '📦';
+  }
+  function txnTitle(txn) {
+    if (txn.type === 'transfer') return accOf(txn.account_id).name + ' → ' + accOf(txn.to_account_id).name;
+    if (txn.type === 'loan_out') return '借出给 ' + perOf(txn.person_id).name;
+    if (txn.type === 'loan_in') return '向 ' + perOf(txn.person_id).name + ' 借入';
+    return catOf(txn.category_id).name;
+  }
+  function txnSub(txn) {
+    if (txn.type === 'transfer') return txn.note || '账户互转';
+    if (txn.type === 'loan_out' || txn.type === 'loan_in') {
+      const out = ledger.loanOutstanding(txn, db.settlements);
+      const st = out === 0 ? '已还清' : '未还 ' + yuan(out);
+      return (txn.note ? txn.note + ' · ' : '') + st;
+    }
+    return txn.note || accOf(txn.account_id).name;
+  }
+  function txnAmount(txn) {
+    if (txn.type === 'income') return { text: signedYuan(txn.amount_cents, 'income'), cls: 'green' };
+    if (txn.type === 'expense') return { text: signedYuan(txn.amount_cents, 'expense'), cls: '' };
+    return { text: yuan(txn.amount_cents), cls: 'muted' };
+  }
+
+  function txnRow(txn) {
+    const amt = txnAmount(txn);
+    const isLoan = txn.type === 'loan_out' || txn.type === 'loan_in';
+    const repaid = isLoan ? ledger.loanRepaid(txn, db.settlements) : 0;
+    const tag = txn.reimburse_status === 'pending' ? '<span class="tag">待报销</span>'
+      : (txn.reimburse_status === 'done' ? '<span class="tag done">已报销</span>'
+        : (isLoan ? (repaid >= Math.abs(txn.amount_cents) ? '<span class="tag done">已还清</span>'
+          : (repaid > 0 ? '<span class="tag">部分已还</span>' : '')) : ''));
+    const isPlain = txn.type === 'transfer' || txn.type === 'loan_out' || txn.type === 'loan_in';
+    const mine = txn.type === 'expense' ? ledger.myShare(txn, db.splits) : Math.abs(txn.amount_cents);
+    const mineNote = (txn.type === 'expense' && mine < Math.abs(txn.amount_cents))
+      ? ' · 我的 ' + yuan(mine) : '';
+    return '<div class="txn ' + (isPlain ? 'transfer-row' : '') + '" data-act="detail" data-id="' + txn.id + '">' +
+      '<div class="ico">' + txnIcon(txn) + '</div>' +
+      '<div class="main"><div class="t"><span>' + esc(txnTitle(txn)) + '</span>' + tag + '</div>' +
+      '<div class="sub">' + esc(txnSub(txn)) + mineNote + '</div></div>' +
+      '<div class="amt num ' + amt.cls + '">' + amt.text + '</div>' +
+      '</div>';
+  }
+
+  // ========== 视图：首页 ==========
+  function viewHome() {
+    const range = monthRange(state.period);
+    const list = txnsIn(range.start, range.end);
+    const includePending = db.settings.pendingIncluded;
+    const expense = ledger.sumExpense(list, db.splits, { includePending });
+    const income = ledger.sumIncome(list);
+    const balance = income - expense;
+    const perWord = state.period === curPeriod() ? '本月' : (Number(state.period.slice(5)) + '月');
+
+    const groups = [];
+    const map = {};
+    sortTxns(list).forEach(t => {
+      const k = dayKey(t.occurred_at);
+      if (!map[k]) {
+        map[k] = { key: k, label: dayLabel(t.occurred_at), expense: 0, income: 0, list: [] };
+        groups.push(map[k]);
+      }
+      map[k].list.push(t);
+      if (t.type === 'expense') {
+        if (!includePending && t.reimburse_status === 'pending') {
+          // 待报销不计入时，日汇总也不计，保持与顶部口径一致
+        } else {
+          map[k].expense += ledger.myShare(t, db.splits);
+        }
+      }
+      if (t.type === 'income') map[k].income += Math.abs(t.amount_cents);
+    });
+
+    let body = '';
+    if (!groups.length) {
+      body = '<div class="empty-inline" style="padding:48px 0">这个月还没有记录<br><br>' +
+        '<span class="mini-btn" data-act="nav" data-view="record" data-type="expense">记一笔</span></div>';
+    } else {
+      body = groups.map(g => {
+        const sums = (g.expense ? '支出 ' + yuan(g.expense) : '') +
+          (g.income ? ' <b>收入 ' + yuan(g.income) + '</b>' : '');
+        return '<div class="day-group"><div class="day-head"><span class="d">' + g.label +
+          '</span><span class="s">' + sums + '</span></div>' +
+          g.list.map(txnRow).join('') + '</div>';
+      }).join('');
+    }
+
+    return topbar('记一笔', false) +
+      '<div class="month-bar">' +
+      '<div class="arrow" data-act="month" data-delta="-1">‹</div>' +
+      '<input class="month-input" type="month" value="' + state.period + '" data-act="pickMonth">' +
+      '<div class="arrow" data-act="month" data-delta="1">›</div>' +
+      '</div>' +
+      '<div class="search-bar" data-act="openSearch"><span class="ic">🔍</span>' +
+      '<span class="ph">搜索全部账单：分类、备注、对方、金额</span></div>' +
+      '<div class="card overview">' +
+      '<div class="col"><div class="label">' + perWord + '支出</div><div class="value num">' + yuan(expense) + '</div></div>' +
+      '<div class="vline"></div>' +
+      '<div class="col"><div class="label">' + perWord + '收入</div><div class="value num green">' + yuan(income) + '</div></div>' +
+      '<div class="vline"></div>' +
+      '<div class="col"><div class="label">结余</div><div class="value num">' + yuan(balance) + '</div></div>' +
+      '</div>' +
+      body +
+      (groups.length ? '<div class="hint" style="text-align:center">共 ' + groups.length + ' 天记录</div>' : '') +
+      '<div class="bottom-bar has-tab">' +
+      '<div class="btn ghost" data-act="nav" data-view="record" data-type="transfer">转账</div>' +
+      '<div class="btn primary" data-act="nav" data-view="record" data-type="expense">记一笔</div>' +
+      '</div>' + tabbar();
+  }
+
+  // ========== 搜索：全账本 + 分类明细 ==========
+  function haystack(t) {
+    const splitNames = db.splits.filter(s => s.transaction_id === t.id)
+      .map(s => perOf(s.person_id).name).join(' ');
+    const dt = new Date(t.occurred_at);
+    const cnDate = dt.getFullYear() + '年' + (dt.getMonth() + 1) + '月' + dt.getDate() + '日';
+    return [
+      t.note || '',
+      catOf(t.category_id).name || '',
+      perOf(t.person_id).name || '',
+      splitNames,
+      accOf(t.account_id).name || '',
+      t.to_account_id ? accOf(t.to_account_id).name : '',
+      TYPE_LABELS[t.type] || '',
+      yuan(t.amount_cents), fmtC(t.amount_cents),
+      fmtDate(t.occurred_at), cnDate,
+      (dt.getMonth() + 1) + '月',
+      String(Math.round(Math.abs(t.amount_cents) / 100))
+    ].join(' ').toLowerCase();
+  }
+  function matchKw(t, kw) {
+    const q = (kw || '').trim().toLowerCase();
+    if (!q) return true;
+    const hay = haystack(t);
+    return q.split(/\s+/).filter(Boolean).every(k => hay.indexOf(k) >= 0);
+  }
+  function groupedListHtml(list, opts) {
+    const o = opts || {};
+    if (!list.length) {
+      return '<div class="empty-inline" style="padding:44px 0">' + esc(o.empty || '没有匹配的账单') + '</div>';
+    }
+    const groups = [], map = {};
+    sortTxns(list).forEach(t => {
+      const k = dayKey(t.occurred_at);
+      if (!map[k]) { map[k] = { key: k, ts: t.occurred_at, label: dayLabel(t.occurred_at), list: [] }; groups.push(map[k]); }
+      map[k].list.push(t);
+    });
+    const thisYear = new Date().getFullYear();
+    return groups.map(g => {
+      const y = new Date(g.ts).getFullYear();
+      const label = y === thisYear ? g.label : fmtDate(g.ts);
+      return '<div class="day-group"><div class="day-head"><span class="d">' + label +
+        '</span><span class="s">' + g.list.length + ' 笔</span></div>' + g.list.map(txnRow).join('') + '</div>';
+    }).join('');
+  }
+
+  function searchScopeList(scope) {
+    let list = db.txns.filter(t => !t.deleted_at);
+    if (scope === 'expense' || scope === 'income' || scope === 'transfer') list = list.filter(t => t.type === scope);
+    else if (scope === 'loan') list = list.filter(t => t.type === 'loan_out' || t.type === 'loan_in');
+    return list.filter(t => matchKw(t, state.kw));
+  }
+  function searchBodyHtml() {
+    const list = searchScopeList(state.searchType);
+    let expense = 0, income = 0;
+    list.forEach(t => {
+      if (t.type === 'expense') expense += ledger.myShare(t, db.splits);
+      if (t.type === 'income') income += Math.abs(t.amount_cents);
+    });
+    const sum = list.length ? ' · 支出 ' + yuan(expense) + ' · 收入 ' + yuan(income) : '';
+    return '<div class="hint" style="padding:0 12px 8px">' +
+      (state.kw ? '找到 ' + list.length + ' 笔' : '全部账单 ' + list.length + ' 笔') + sum + '</div>' +
+      groupedListHtml(list, { empty: state.kw ? '没有找到「' + state.kw + '」相关账单' : '还没有任何账单' });
+  }
+
+  function viewSearch() {
+    const scopes = [['all', '全部'], ['expense', '支出'], ['income', '收入'], ['transfer', '转账'], ['loan', '借出借入']];
+    return '<div class="search-head"><div class="back" data-act="back">‹</div>' +
+      '<div class="box"><span class="ic">🔍</span>' +
+      '<input id="q" data-act="searchKw" value="' + esc(state.kw) + '" autocomplete="off" ' +
+      'placeholder="分类、备注、对方、金额"></div>' +
+      '<span style="font-size:12px;color:#9AA3AF;padding:4px;cursor:pointer" data-act="clearKw">清空</span>' +
+      '</div>' +
+      '<div class="chips" style="padding:0 12px 10px">' + scopes.map(s =>
+        '<div class="chip ' + (state.searchType === s[0] ? 'on' : '') + '" data-act="searchScope" data-type="' + s[0] + '">' + s[1] + '</div>').join('') +
+      '</div>' +
+      '<div id="search-body">' + searchBodyHtml() + '</div>';
+  }
+
+  function catTotal(list, type) {
+    return list.reduce((s, t) => s + (type === 'expense' ? ledger.myShare(t, db.splits) : Math.abs(t.amount_cents)), 0);
+  }
+  function categoryAll(id, type) {
+    return db.txns.filter(t => {
+      if (t.deleted_at || t.type !== type) return false;
+      if (id === 'unknown') return !t.category_id || !db.categories.some(c => c.id === t.category_id);
+      return t.category_id === id;
+    });
+  }
+  function catBodyHtml() {
+    const type = state.params.type === 'income' ? 'income' : 'expense';
+    const list = categoryAll(state.params.id, type).filter(t => matchKw(t, state.catKw));
+    const head = state.catKw ? '匹配 ' + list.length + ' 笔 · ' : '共 ' + list.length + ' 笔 · ';
+    return '<div class="hint" style="padding:0 12px 8px">' + head + '合计 ' + yuan(catTotal(list, type)) + '</div>' +
+      groupedListHtml(list, { empty: state.catKw ? '没有匹配的账单' : '这个分类还没有账单' });
+  }
+  function viewCategory() {
+    const type = state.params.type === 'income' ? 'income' : 'expense';
+    const id = state.params.id || 'unknown';
+    const cat = db.categories.find(c => c.id === id) || { name: '未分类', icon: '📦' };
+    const all = categoryAll(id, type);
+    const total = catTotal(all, type);
+    const typeTotal = catTotal(db.txns.filter(t => !t.deleted_at && t.type === type), type);
+    const monthTotal = catTotal(all.filter(t => periodOf(t.occurred_at) === curPeriod()), type);
+    const share = typeTotal > 0 ? (Math.round((total / typeTotal) * 1000) / 10).toFixed(1) + '%' : '—';
+    return topbar(cat.name, true) +
+      '<div class="card head-card"><div class="k">' + (type === 'income' ? '收入分类' : '支出分类') + ' · ' + all.length + ' 笔</div>' +
+      '<div class="v num">' + cat.icon + ' ' + yuan(total) + '</div>' +
+      '<div style="font-size:11px;color:#9AA3AF;margin-top:8px">占全部' + (type === 'income' ? '收入' : '支出') + ' ' + share +
+      ' · 本月 ' + yuan(monthTotal) + '</div></div>' +
+      '<div class="search-bar"><span class="ic">🔍</span>' +
+      '<input id="cat-q" data-act="catKw" value="' + esc(state.catKw) + '" autocomplete="off" placeholder="搜备注、对方、账户、金额"></div>' +
+      '<div id="cat-body">' + catBodyHtml() + '</div>';
+  }
+
+  // ========== 视图：记一笔 ==========
+  function viewRecord() {
+    const d = state.draft;
+    if (!d) return '';
+    const cats = catsOf(d.type);
+    const accounts = visibleAccounts();
+    const persons = activePersons();
+    const isAmountType = d.type === 'expense' || d.type === 'income';
+    const amountCls = d.type === 'income' ? 'income' : (isAmountType ? '' : 'plain');
+
+    // 借出/借入、待报销必须有对象：没选中或选的对象已归档时补上第一个，避免下拉显示与草稿不一致
+    const needsPerson = d.type === 'loan_out' || d.type === 'loan_in' || (d.type === 'expense' && d.reimburse);
+    if (needsPerson && !persons.some(p => p.id === d.personId) && persons[0]) {
+      d.personId = persons[0].id;
+    }
+
+    let form = '';
+    if (isAmountType) {
+      form += '<div class="card"><div class="cat-grid">' +
+        cats.map(c => '<div class="cat-cell ' + (c.id === d.categoryId ? 'on' : '') +
+          '" data-act="setCategory" data-id="' + c.id + '"><div class="i">' + c.icon +
+          '</div><div class="n">' + esc(c.name) + '</div></div>').join('') +
+        '<div class="cat-cell" data-act="newCategory" data-type="' + d.type + '">' +
+        '<div class="i">＋</div><div class="n">新增</div></div>' +
+        '</div></div>';
+      const picked = db.categories.find(c => c.id === d.categoryId);
+      if (picked && picked.name === '其他') {
+        form += '<div class="card" style="padding:0 14px"><div class="field field-row">' +
+          '<span class="field-label">自定义分类</span>' +
+          '<input class="txt" id="f-custom" maxlength="8" placeholder="如：宠物、话费" value="' +
+          esc(d.customName || '') + '" data-act="customName"></div>' +
+          '<div class="hint" style="padding:0 0 10px">填了会在「其他」下新建同名分类，统计里单独成一项；不填就记到「其他」。</div></div>';
+      }
+    }
+
+    let rows = '';
+    rows += '<div class="field"><div class="field-label">' + (d.type === 'transfer' ? '转出账户' : '账户') + '</div>' +
+      '<div class="chips">' + accounts.map(a =>
+        '<div class="chip ' + (a.id === d.accountId ? 'on' : '') + '" data-act="setAccount" data-id="' + a.id + '">' +
+        esc(a.name) + '</div>').join('') + '</div></div>';
+
+    if (d.type === 'transfer') {
+      rows += '<div class="line"></div><div class="field field-row"><span class="field-label">转入账户</span>' +
+        '<select class="sel" data-act="setToAccount">' + accounts.map(a =>
+          '<option value="' + a.id + '"' + (a.id === d.toAccountId ? ' selected' : '') + '>' + esc(a.name) + '</option>').join('') +
+        '</select></div>';
+    }
+    if (d.type === 'loan_out' || d.type === 'loan_in') {
+      rows += '<div class="line"></div><div class="field field-row"><span class="field-label">往来对象</span>' +
+        (persons.length
+          ? '<div style="display:flex;align-items:center;gap:8px"><select class="sel" data-act="setPerson">' + persons.map(p =>
+            '<option value="' + p.id + '"' + (p.id === d.personId ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
+            '</select><span class="mini-btn" style="padding:3px 9px" data-act="newPerson">＋</span></div>'
+          : '<span class="mini-btn" style="color:#1F6F5C;border-color:#1F6F5C" data-act="newPerson">＋ 新建往来对象</span>') +
+        '</div>';
+    }
+    if (d.type === 'expense') {
+      rows += '<div class="line"></div><div class="field field-row"><span class="field-label">待报销</span>' +
+        '<div class="switch ' + (d.reimburse ? 'on' : '') + '" data-act="toggleReimburse"><div class="knob"></div></div></div>';
+      if (d.reimburse) {
+        rows += '<div class="field field-row"><span class="field-label">报销对象</span>' +
+          (persons.length
+            ? '<div style="display:flex;align-items:center;gap:8px"><select class="sel" data-act="setPerson">' + persons.map(p =>
+              '<option value="' + p.id + '"' + (p.id === d.personId ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
+              '</select><span class="mini-btn" style="padding:3px 9px" data-act="newPerson">＋</span></div>'
+            : '<span class="mini-btn" style="color:#1F6F5C;border-color:#1F6F5C" data-act="newPerson">＋ 新建往来对象</span>') +
+          '</div>';
+      }
+      rows += '<div class="line"></div><div class="field field-row" data-act="openSplit">' +
+        '<span class="field-label">多人分摊</span>' +
+        '<span style="font-size:12px;color:' + (splitSelected().length ? '#1F6F5C' : '#9AA3AF') + '">' +
+        (splitSelected().length ? splitSummaryText() : '未分摊') + ' ›</span></div>';
+    }
+
+    rows += '<div class="line"></div><div class="field field-row"><span class="field-label">日期</span>' +
+      '<input class="txt" type="date" value="' + d.dateText + '" data-act="setDate"></div>';
+    rows += '<div class="line"></div><div class="field"><div class="field-label" style="margin-bottom:6px">备注</div>' +
+      '<input class="txt left" style="text-align:left;width:100%;font-size:14px" maxlength="50" placeholder="可选，最多 50 字" value="' +
+      esc(d.note) + '" data-act="note"></div>';
+
+    const saveCls = (d.amountText && safeParse(d.amountText) > 0) ? '' : ' disabled';
+
+    return topbar(d.id ? '编辑账单' : '记一笔', true) +
+      '<div class="tabs5">' + TYPES.map(t =>
+        '<div class="t ' + (t.key === d.type ? 'on' : '') + '" data-act="setType" data-type="' + t.key + '">' +
+        t.label + '</div>').join('') + '</div>' +
+      '<div class="amount-area"><span class="v num ' + amountCls + '">' + (d.amountText || '0') + '</span>' +
+      '<span class="u">元</span></div>' +
+      '<div class="type-hint">' + TYPE_HINTS[d.type] + '</div>' +
+      form +
+      '<div class="card">' + rows + '</div>' +
+      '<div class="keypad"><div class="grid">' +
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'].map(k =>
+        '<div class="key ' + (k === 'back' ? 'fn' : '') + '" data-act="key" data-key="' + k + '">' +
+        (k === 'back' ? '⌫' : k) + '</div>').join('') +
+      '</div><div class="ok' + saveCls + '" data-act="saveTxn">保存</div></div>';
+  }
+
+  function safeParse(text) {
+    try { return parseYuan(text); } catch (e) { return 0; }
+  }
+
+  function splitSelected() {
+    return (state.draft ? state.draft.splits : []).filter(s => s.checked);
+  }
+  function splitParts() {
+    const d = state.draft;
+    const total = safeParse(d.amountText);
+    const sel = splitSelected();
+    if (!sel.length || total <= 0) return null;
+    const weights = [1].concat(sel.map(s => s.shares));
+    return ledger.allocateShares(total, weights, 0);
+  }
+  function splitSummaryText() {
+    const parts = splitParts();
+    if (!parts) return '已选 ' + splitSelected().length + ' 人';
+    return '我的份额 ' + yuan(parts[0]);
+  }
+
+  // ========== 视图：详情 ==========
+  function viewDetail() {
+    const txn = db.txns.find(t => t.id === state.params.id);
+    if (!txn) {
+      return topbar('账单详情', true) + '<div class="empty-inline">这笔账不存在或已删除</div>';
+    }
+    const splits = db.splits.filter(s => s.transaction_id === txn.id);
+    const rows = [];
+    rows.push(['类型', TYPE_LABELS[txn.type] || txn.type]);
+    rows.push(['金额', yuan(txn.amount_cents)]);
+    if (txn.category_id) rows.push(['分类', catOf(txn.category_id).icon + ' ' + catOf(txn.category_id).name]);
+    rows.push(['账户', accOf(txn.account_id).name]);
+    if (txn.to_account_id) rows.push(['转入账户', accOf(txn.to_account_id).name]);
+    if (txn.person_id) rows.push([txn.type === 'expense' ? '报销对象' : '往来对象', perOf(txn.person_id).name]);
+    const isLoan = txn.type === 'loan_out' || txn.type === 'loan_in';
+    const repaid = isLoan ? ledger.loanRepaid(txn, db.settlements) : 0;
+    const outstanding = isLoan ? ledger.loanOutstanding(txn, db.settlements) : 0;
+    if (isLoan) {
+      rows.push(['还款状态', outstanding === 0 ? '已还清'
+        : (repaid > 0 ? '已还 ' + yuan(repaid) + '，未还 ' + yuan(outstanding) : '未还 ' + yuan(outstanding))]);
+    }
+    if (txn.type === 'expense') {
+      rows.push(['报销状态', txn.reimburse_status === 'pending' ? '待报销' : (txn.reimburse_status === 'done' ? '已报销' : '不报销')]);
+    }
+    rows.push(['日期', fmtDate(txn.occurred_at)]);
+    rows.push(['备注', txn.note || '—']);
+    rows.push(['记录时间', fmtDT(txn.created_at)]);
+
+    const amountCls = txn.type === 'income' ? 'green' : (txn.type === 'expense' ? '' : 'muted');
+    const splitRows = splits.length
+      ? '<div class="card"><div class="section-head"><span class="section-title">分摊明细</span></div>' +
+      splits.map(s => '<div class="row"><span class="k">' + esc(perOf(s.person_id).name) + '</span>' +
+        '<span class="v">' + (s.direction === 'we_owe' ? '我欠 TA ' : 'TA 欠我 ') + yuan(s.share_cents) + '</span></div>').join('') +
+      '</div>'
+      : '';
+
+    return topbar('账单详情', true) +
+      '<div class="card head-card"><div class="k">' + (TYPE_LABELS[txn.type] || '') + '</div>' +
+      '<div class="v num ' + amountCls + '">' + signedYuan(txn.amount_cents, txn.type) + '</div></div>' +
+      '<div class="card"><div class="row-list">' +
+      rows.map(r => '<div class="row"><span class="k">' + r[0] + '</span><span class="v">' + esc(r[1]) + '</span></div>').join('') +
+      '</div></div>' + splitRows +
+      (txn.type === 'expense' && txn.reimburse_status === 'pending' && txn.person_id
+        ? '<div style="padding:4px 12px"><div class="btn primary" style="height:44px;line-height:44px" data-act="openReimburse" data-id="' + txn.id + '" data-amount="' + ledger.myShare(txn, db.splits) + '">报销到账</div></div>'
+        : '') +
+      (isLoan && outstanding > 0
+        ? '<div style="padding:4px 12px"><div class="btn primary" style="height:44px;line-height:44px" data-act="openLoanRepay" data-id="' + txn.id + '">' +
+          (txn.type === 'loan_out' ? '确认收回（TA 已还款）' : '确认还款（我已还 TA）') + '</div></div>'
+        : '') +
+      '<div style="display:flex;gap:10px;padding:4px 12px">' +
+      '<div class="btn ghost" style="flex:1;width:auto" data-act="editTxn" data-id="' + txn.id + '">编辑</div>' +
+      '<div class="btn small" style="flex:1;height:46px;line-height:46px;background:#FDECEA;color:#D9553F" data-act="deleteTxn" data-id="' + txn.id + '">删除</div>' +
+      '</div>';
+  }
+
+  // ========== 视图：统计 ==========
+  function viewStats() {
+    const p = state.period;
+    let current, ranges;
+    if (state.statsMode === 'month') {
+      current = monthRange(p);
+      ranges = [];
+      for (let i = 5; i >= 0; i--) {
+        const q = shiftPeriod(p, -i);
+        const r = monthRange(q);
+        ranges.push({ period: q, start: r.start, end: r.end });
+      }
+    } else {
+      const y = Number(p.slice(0, 4));
+      current = yearRange(y);
+      ranges = [];
+      for (let m = 1; m <= 12; m++) {
+        const q = y + '-' + pad2(m);
+        const r = monthRange(q);
+        ranges.push({ period: q, start: r.start, end: r.end });
+      }
+    }
+    const includePending = db.settings.pendingIncluded;
+    const cur = txnsIn(current.start, current.end);
+    const expense = ledger.sumExpense(cur, db.splits, { includePending });
+    const income = ledger.sumIncome(cur);
+    const rate = ledger.savingRate(income, expense);
+    const expenseList = ledger.byCategory(cur, db.splits, db.categories, 'expense', { includePending });
+    const incomeList = ledger.byCategory(cur, db.splits, db.categories, 'income', { includePending });
+    const trend = ranges.map(r => {
+      const ts = txnsIn(r.start, r.end);
+      return {
+        label: Number(r.period.slice(5)) + '月',
+        expense: ledger.sumExpense(ts, db.splits, { includePending }),
+        income: ledger.sumIncome(ts)
+      };
+    });
+
+    let budgets = [];
+    if (state.statsMode === 'month') {
+      const usedByCat = {};
+      cur.forEach(t => {
+        if (t.type !== 'expense') return;
+        if (!includePending && t.reimburse_status === 'pending') return;
+        const k = t.category_id || 'unknown';
+        usedByCat[k] = (usedByCat[k] || 0) + ledger.myShare(t, db.splits);
+      });
+      budgets = db.budgets.filter(b => b.period === p).map(b => {
+        const isTotal = !b.category_id;
+        const used = isTotal ? expense : (usedByCat[b.category_id] || 0);
+        const percent = b.amount_cents > 0 ? Math.round((used / b.amount_cents) * 1000) / 10 : 0;
+        return {
+          id: b.id,
+          category_id: b.category_id || null,
+          name: isTotal ? '总预算' : catOf(b.category_id).name,
+          icon: isTotal ? '🎯' : catOf(b.category_id).icon,
+          budget_cents: b.amount_cents,
+          used_cents: used,
+          percent,
+          over: used > b.amount_cents,
+          over_cents: Math.max(0, used - b.amount_cents)
+        };
+      }).sort((a, b) => (a.category_id ? 1 : 0) - (b.category_id ? 1 : 0));
+    }
+
+    state.stats = { expense, income, rate, expenseList, incomeList, trend, budgets };
+
+    // 借出 / 借入：单列，不进收支
+    const loanSum = type => db.txns.filter(t => !t.deleted_at && t.type === type)
+      .reduce((s, t) => s + ledger.loanOutstanding(t, db.settlements), 0);
+    const loanOutUnpaid = loanSum('loan_out');
+    const loanInUnpaid = loanSum('loan_in');
+    const periodOut = cur.filter(t => t.type === 'loan_out').reduce((s, t) => s + Math.abs(t.amount_cents), 0);
+    const periodIn = cur.filter(t => t.type === 'loan_in').reduce((s, t) => s + Math.abs(t.amount_cents), 0);
+    const loanPeople = db.persons.map(p => {
+      const pick = type => db.txns.filter(t => !t.deleted_at && t.type === type && t.person_id === p.id)
+        .reduce((s, t) => s + ledger.loanOutstanding(t, db.settlements), 0);
+      return { p, out: pick('loan_out'), inn: pick('loan_in') };
+    }).filter(x => x.out > 0 || x.inn > 0).sort((a, b) => (b.out - b.inn) - (a.out - a.inn));
+
+
+    const periodText = state.statsMode === 'month' ? monthLabel(p) : p.slice(0, 4) + '年';
+    const periodWord = state.statsMode === 'year' ? '本年' : (p === curPeriod() ? '本月' : Number(p.slice(5)) + '月');
+
+    const ring = (id, list, type) => list.length
+      ? '<canvas id="' + id + '" style="height:150px"></canvas><div style="margin-top:6px">' +
+      list.map(item => '<div class="legend-row" data-act="catDetail" data-type="' + type + '" data-id="' + item.id + '">' +
+        '<span class="dot" style="background:' + item.color + '"></span>' +
+        '<span class="n">' + item.icon + ' ' + esc(item.name) + '</span>' +
+        '<span class="p">' + item.percent + '%</span>' +
+        '<span class="a num">' + yuan(item.amount_cents) + '</span>' +
+        '<span class="chev">›</span></div>').join('') + '</div>'
+      : '<div class="empty-inline">这段时间没有' + (id === 'ring-expense' ? '支出' : '收入') + '</div>';
+
+    const budgetBlock = state.statsMode === 'month'
+      ? '<div class="card"><div class="section-head"><span class="section-title">预算</span>' +
+      '<span class="section-extra" data-act="openBudget">设置预算 ›</span></div>' +
+      (budgets.length ? budgets.map(b =>
+        '<div class="budget-row"><div class="budget-head"><span>' + b.icon + ' ' + esc(b.name) +
+        '</span><span class="num ' + (b.over ? 'red' : '') + '">' + yuan(b.used_cents) + ' / ' + yuan(b.budget_cents) + '</span></div>' +
+        '<div class="bar"><div class="fill ' + (b.over ? 'over' : '') + '" style="width:' + Math.min(100, b.percent) + '%"></div></div>' +
+        '<div class="budget-tip ' + (b.over ? 'red' : '') + '">' + (b.over ? '超支 ' + yuan(b.over_cents) : '已用 ' + b.percent + '%') +
+        '</div></div>').join('') +
+        '<div class="budget-tip" style="text-align:center;margin-top:6px"><span class="mini-btn" data-act="openBudget">新增预算</span></div>'
+        : '<div class="empty-inline">还没有设置预算</div>') + '</div>'
+      : '';
+
+    return topbar('统计', false) +
+      '<div class="mode-row"><div class="mode-switch">' +
+      '<div class="m ' + (state.statsMode === 'month' ? 'on' : '') + '" data-act="statsMode" data-mode="month">月</div>' +
+      '<div class="m ' + (state.statsMode === 'year' ? 'on' : '') + '" data-act="statsMode" data-mode="year">年</div>' +
+      '</div><div class="period-nav"><div class="arrow" style="width:30px;text-align:center;color:#86909C;cursor:pointer" data-act="statsPeriod" data-delta="-1">‹</div>' +
+      '<span style="font-size:14px;font-weight:600;min-width:96px;text-align:center">' + periodText + '</span>' +
+      '<div class="arrow" style="width:30px;text-align:center;color:#86909C;cursor:pointer" data-act="statsPeriod" data-delta="1">›</div>' +
+      '</div></div>' +
+      '<div class="card"><div class="section-head"><span class="section-title">收支对比</span>' +
+      '<span class="section-extra">' + cur.length + ' 笔</span></div>' +
+      '<div class="summary-grid">' +
+      '<div class="item"><div class="k">收入</div><div class="v num green">' + yuan(income) + '</div></div>' +
+      '<div class="item"><div class="k">支出</div><div class="v num">' + yuan(expense) + '</div></div>' +
+      '<div class="item"><div class="k">结余</div><div class="v num">' + yuan(income - expense) + '</div></div>' +
+      '<div class="item"><div class="k">结余率</div><div class="v num">' + rate.text + '</div></div>' +
+      '</div></div>' +
+      '<div class="card"><div class="section-head"><span class="section-title">借出 / 借入</span>' +
+      '<span class="section-extra">不计入收支</span></div>' +
+      '<div class="summary-grid">' +
+      '<div class="item"><div class="k">待收（借出未回）</div><div class="v num green">' + yuan(loanOutUnpaid) + '</div></div>' +
+      '<div class="item"><div class="k">待还（借入未还）</div><div class="v num red">' + yuan(loanInUnpaid) + '</div></div>' +
+      '<div class="item"><div class="k">' + periodWord + '借出</div><div class="v num">' + yuan(periodOut) + '</div></div>' +
+      '<div class="item"><div class="k">' + periodWord + '借入</div><div class="v num">' + yuan(periodIn) + '</div></div>' +
+      '</div>' +
+      (loanPeople.length
+        ? '<div class="row-list">' + loanPeople.map(x =>
+          '<div class="row" data-act="person" data-id="' + x.p.id + '">' +
+          '<span class="k">' + esc(x.p.name) + '</span>' +
+          '<span class="v">' + (x.out > 0 ? '<span class="num green">欠我 ' + yuan(x.out) + '</span>' : '') +
+          (x.out > 0 && x.inn > 0 ? ' · ' : '') +
+          (x.inn > 0 ? '<span class="num red">我欠 ' + yuan(x.inn) + '</span>' : '') + ' ›</span></div>').join('') + '</div>'
+        : '<div class="empty-inline">目前没有待收或待还的借款</div>') +
+      '<div class="hint" style="margin:0 12px 12px">点开对象可对每笔借款「确认还款」；还款只动账户，不算收支。</div>' +
+      '</div>' +
+      '<div class="card"><div class="section-head"><span class="section-title">支出构成</span>' +
+      '<span class="section-extra">按我的份额 · 点分类看明细</span></div>' + ring('ring-expense', expenseList, 'expense') + '</div>' +
+      '<div class="card"><div class="section-head"><span class="section-title">收入构成</span>' +
+      '<span class="section-extra">按收入分类 · 点分类看明细</span></div>' + ring('ring-income', incomeList, 'income') + '</div>' +
+      (state.statsMode === 'month'
+        ? '<div class="card"><div class="section-head"><span class="section-title">近 6 个月趋势</span>' +
+        '<span class="section-extra">深色支出 · 绿色收入</span></div>' +
+        '<canvas id="trend-chart" style="height:160px"></canvas></div>' : '') +
+      budgetBlock + tabbar();
+  }
+
+  // ========== 图表绘制 ==========
+  function canvasCtx(id) {
+    const cv = document.getElementById(id);
+    if (!cv) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth;
+    const h = cv.clientHeight;
+    if (!w || !h) return null;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+
+  function drawRing(id, items) {
+    const c = canvasCtx(id);
+    if (!c) return;
+    const { ctx, w, h } = c;
+    const cx = w / 2, cy = h / 2;
+    const radius = Math.min(w, h) / 2 - 14;
+    let angle = -Math.PI / 2;
+    items.forEach(item => {
+      const sweep = (item.percent / 100) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.strokeStyle = item.color || '#1F6F5C';
+      ctx.lineWidth = 12;
+      ctx.arc(cx, cy, radius, angle + 0.004, angle + Math.max(0.004, sweep - 0.004));
+      ctx.stroke();
+      angle += sweep;
+    });
+    const total = items.reduce((a, b) => a + b.amount_cents, 0);
+    ctx.fillStyle = '#1F2329';
+    ctx.font = '600 14px -apple-system, "PingFang SC", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(yuan(total), cx, cy - 6);
+    ctx.fillStyle = '#9AA3AF';
+    ctx.font = '11px -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText('合计', cx, cy + 13);
+  }
+
+  function drawTrend() {
+    const c = canvasCtx('trend-chart');
+    if (!c || !state.stats) return;
+    const { ctx, w, h } = c;
+    const items = state.stats.trend;
+    const padBottom = 22;
+    const chartH = h - padBottom - 6;
+    const max = Math.max(1, ...items.map(i => Math.max(i.expense, i.income)));
+    const groupW = w / items.length;
+    const barW = Math.max(4, Math.min(12, groupW / 4));
+
+    ctx.strokeStyle = '#EDEFF2';
+    ctx.beginPath();
+    ctx.moveTo(0, h - padBottom);
+    ctx.lineTo(w, h - padBottom);
+    ctx.stroke();
+
+    items.forEach((item, i) => {
+      const x = groupW * i + groupW / 2;
+      const eh = (item.expense / max) * chartH;
+      const ih = (item.income / max) * chartH;
+      ctx.fillStyle = '#1F2329';
+      ctx.fillRect(x - barW - 2, h - padBottom - eh, barW, eh);
+      ctx.fillStyle = '#1F9D55';
+      ctx.fillRect(x + 2, h - padBottom - ih, barW, ih);
+      ctx.fillStyle = '#9AA3AF';
+      ctx.font = '10px -apple-system, "PingFang SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.label, x, h - 7);
+    });
+  }
+
+  function drawCharts() {
+    requestAnimationFrame(() => {
+      if (!state.stats) return;
+      if (state.stats.expenseList.length) drawRing('ring-expense', state.stats.expenseList);
+      if (state.stats.incomeList.length) drawRing('ring-income', state.stats.incomeList);
+      if (state.statsMode === 'month') drawTrend();
+    });
+  }
+
+  // ========== 视图：我的 ==========
+  function viewSettings() {
+    const total = db.txns.filter(t => !t.deleted_at).length;
+    const deleted = db.txns.filter(t => t.deleted_at).sort((a, b) => b.deleted_at - a.deleted_at).slice(0, 8);
+    const accounts = visibleAccounts();
+    const defaultAcc = db.settings.defaultAccountId || (accounts[0] ? accounts[0].id : '');
+
+    return topbar('我的', false) +
+      '<div class="card"><div style="font-size:18px;font-weight:700">' + esc(db.household.name) + '</div>' +
+      '<div class="hint" style="padding:6px 0 0">数据保存在这台设备的浏览器里，共 ' + total + ' 笔记录。换设备或清浏览器缓存都不会带过去，建议定期导出。</div></div>' +
+
+      '<div class="card" style="padding:0 14px">' +
+      '<div class="field field-row"><span class="field-label">默认账户</span>' +
+      '<select class="sel" data-act="setDefaultAccount">' + accounts.map(a =>
+        '<option value="' + a.id + '"' + (a.id === defaultAcc ? ' selected' : '') + '>' + esc(a.name) + '</option>').join('') +
+      '</select></div>' +
+      '<div class="line"></div>' +
+      '<div class="field field-row"><div><div class="field-label">待报销计入支出统计</div>' +
+      '<div style="font-size:11px;color:#9AA3AF">默认不计入，报销到账也不算收入</div></div>' +
+      '<div class="switch ' + (db.settings.pendingIncluded ? 'on' : '') + '" data-act="togglePending"><div class="knob"></div></div></div>' +
+      '</div>' +
+
+      '<div class="card" style="padding:0 14px">' +
+      ['accounts|账户管理', 'categories|分类管理', 'persons|往来（谁欠谁）'].map(s => {
+        const [v, label] = s.split('|');
+        return '<div class="field field-row" data-act="nav" data-view="' + v + '"><span class="field-label">' + label +
+          '</span><span style="color:#C0C6CF;font-size:13px">›</span></div><div class="line"></div>';
+      }).join('') +
+      '<div class="field field-row" data-act="export"><span class="field-label">导出 CSV</span>' +
+      '<span style="color:#C0C6CF;font-size:13px">›</span></div></div>' +
+
+      '<div class="card" style="padding:0 14px">' +
+      '<div class="field field-row" data-act="demo"><div><div class="field-label">填充示例数据</div>' +
+      '<div style="font-size:11px;color:#9AA3AF">' + (db.settings.demoLoaded ? '已填充过，可重复填充' : '含六类动作、分摊与待报销') + '</div></div>' +
+      '<span style="color:#C0C6CF;font-size:13px">›</span></div>' +
+      '<div class="line"></div>' +
+      '<div class="field field-row" data-act="clear"><span class="field-label red">清空数据</span>' +
+      '<span style="color:#C0C6CF;font-size:13px">›</span></div></div>' +
+
+      '<div class="card"><div class="section-head"><span class="section-title">数据恢复</span>' +
+      '<span class="section-extra">最近删除</span></div>' +
+      (deleted.length ? deleted.map(t =>
+        '<div class="field field-row"><div><div style="font-size:13px">' + fmtDate(t.occurred_at) + ' · ' + yuan(t.amount_cents) + '</div>' +
+        '<div style="font-size:11px;color:#9AA3AF">删除于 ' + fmtDT(t.deleted_at) + '</div></div>' +
+        '<span class="mini-btn" data-act="restore" data-id="' + t.id + '">恢复</span></div>').join('')
+        : '<div class="empty-inline">没有已删除的记录</div>') + '</div>' +
+      '<div class="hint" style="text-align:center">记一笔 · 网页版</div>' +
+      tabbar();
+  }
+
+  // ========== 视图：账户 ==========
+  function viewAccounts() {
+    const balances = ledger.accountBalances(db.accounts, db.txns, db.settlements);
+    const list = db.accounts.slice().sort((a, b) => a.sort - b.sort);
+    return topbar('账户', true) +
+      (list.length ? list.map(a => {
+        const b = balances[a.id] || 0;
+        return '<div class="list-item" data-act="editAccount" data-id="' + a.id + '">' +
+          '<div class="grow"><div class="nm">' + esc(a.name) +
+          (a.archived ? ' <span style="font-size:10px;color:#86909C;background:#F2F4F6;padding:1px 5px;border-radius:4px">已归档</span>' : '') +
+          '</div><div class="sb">初始余额 ' + fmtC(a.initial_balance_cents) + ' 元</div></div>' +
+          '<div class="right num ' + (b < 0 ? 'red' : '') + '">' + yuan(b) + '</div></div>';
+      }).join('') : '<div class="empty-inline">还没有账户</div>') +
+      '<div class="hint">余额按公式实时算：初始 + 收入 − 支出 − 借出 + 借入 + 结算 − 转出 + 转入。信用卡为负即欠款。</div>' +
+      '<div class="bottom-bar"><div class="btn primary" data-act="newAccount">新增账户</div></div>';
+  }
+
+  // ========== 视图：分类 ==========
+  function viewCategories() {
+    const group = (type, title) => {
+      const list = db.categories.filter(c => c.type === type).sort((a, b) => a.sort - b.sort);
+      return '<div class="card"><div class="section-head"><span class="section-title">' + title + '</span>' +
+        '<span class="section-extra" data-act="newCategory" data-type="' + type + '">新增 ›</span></div>' +
+        '<div class="cat-grid">' + list.map(c =>
+          '<div class="cat-cell" data-act="editCategory" data-id="' + c.id + '" style="' + (c.archived ? 'opacity:.4' : '') + '">' +
+          '<div class="i">' + c.icon + '</div><div class="n">' + esc(c.name) + '</div></div>').join('') +
+        '</div></div>';
+    };
+    return topbar('分类', true) + group('expense', '支出分类') + group('income', '收入分类') +
+      '<div class="hint">系统分类不能删除。支出与收入是两套分类，不能混用。</div>';
+  }
+
+  // ========== 视图：往来 ==========
+  function viewPersons() {
+    const balances = ledger.personBalances(db.persons, db.txns, db.splits, db.settlements);
+    const list = db.persons.slice().sort((a, b) =>
+      Math.abs(balances[b.id] || 0) - Math.abs(balances[a.id] || 0));
+    return topbar('往来', true) +
+      (list.length ? list.map(p => {
+        const b = balances[p.id] || 0;
+        const tone = b > 0 ? 'green' : (b < 0 ? 'red' : 'muted');
+        return '<div class="list-item" data-act="person" data-id="' + p.id + '">' +
+          '<div class="grow"><div class="nm">' + esc(p.name) +
+          (p.archived ? ' <span style="font-size:10px;color:#86909C;background:#F2F4F6;padding:1px 5px;border-radius:4px">已归档</span>' : '') +
+          '</div><div class="sb">' + esc(PERSON_KIND_LABELS[p.kind] || '') + (p.note ? ' · ' + esc(p.note) : '') + '</div></div>' +
+          '<div class="right num ' + tone + '" style="font-size:13px">' +
+          (b === 0 ? '已结清' : (b > 0 ? 'TA 欠我 ' : '我欠 TA ') + yuan(Math.abs(b))) + '</div></div>';
+      }).join('') : '<div class="empty-inline">还没有往来对象</div>') +
+      '<div class="hint">正数是 TA 欠我，负数是我欠 TA。结算会动账户余额，但不算收支。</div>' +
+      '<div class="bottom-bar"><div class="btn primary" data-act="newPerson">添加往来对象</div></div>';
+  }
+
+  const PERSON_KIND_LABELS = { family: '家人', colleague: '同事', friend: '朋友', company: '公司' };
+
+  // ========== 视图：某人 ==========
+  function viewPersonDetail() {
+    const person = db.persons.find(p => p.id === state.params.id);
+    if (!person) return topbar('往来详情', true) + '<div class="empty-inline">对象不存在</div>';
+    const balances = ledger.personBalances(db.persons, db.txns, db.splits, db.settlements);
+    const balance = balances[person.id] || 0;
+    const tone = balance > 0 ? 'green' : (balance < 0 ? 'red' : 'muted');
+
+    const splitMap = {};
+    db.splits.filter(s => s.person_id === person.id).forEach(s => { splitMap[s.transaction_id] = s; });
+    const related = db.txns.filter(t => !t.deleted_at &&
+      (t.person_id === person.id || splitMap[t.id]));
+    const rows = [];
+
+    related.forEach(t => {
+      let value = Math.abs(t.amount_cents);
+      let title = TYPE_LABELS[t.type] || t.type;
+      let cls = '';
+      let out = 0;
+      let repayLabel = '';
+      if (t.type === 'loan_out') title = '借出', cls = 'green';
+      if (t.type === 'loan_in') title = '借入', cls = 'red';
+      if (t.type === 'loan_out' || t.type === 'loan_in') {
+        out = ledger.loanOutstanding(t, db.settlements);
+        repayLabel = t.type === 'loan_out' ? '确认收回' : '确认还款';
+      }
+      if (t.type === 'expense' && splitMap[t.id]) {
+        value = splitMap[t.id].share_cents;
+        title = splitMap[t.id].direction === 'we_owe' ? 'TA 替我垫付' : '分摊（TA 应承担）';
+        cls = splitMap[t.id].direction === 'we_owe' ? 'red' : 'green';
+      } else if (t.type === 'expense' && t.reimburse_status) {
+        title = t.reimburse_status === 'pending' ? '待报销' : '已报销';
+        cls = 'green';
+      }
+      rows.push({
+        key: t.id, date: t.occurred_at, title, sub: t.note || '',
+        amount: value, cls, pending: t.type === 'expense' && t.reimburse_status === 'pending',
+        out, repayLabel
+      });
+    });
+
+    db.settlements.filter(s => !s.deleted_at && s.person_id === person.id).forEach(s => {
+      rows.push({
+        key: s.id, date: s.occurred_at,
+        title: s.txn_id ? (s.direction === 'in' ? '收到还款' : '归还借款') : (s.direction === 'in' ? '收到结算' : '付出结算'),
+        sub: s.note || '', amount: s.amount_cents, cls: 'muted'
+      });
+    });
+
+    rows.sort((a, b) => b.date - a.date);
+
+    return topbar(person.name, true) +
+      '<div class="card head-card"><div class="k">' + (balance > 0 ? 'TA 欠我' : (balance < 0 ? '我欠 TA' : '已结清')) + '</div>' +
+      '<div class="v num ' + tone + '">' + yuan(Math.abs(balance)) + '</div>' +
+      (balance !== 0 ? '<div style="margin-top:12px"><span class="mini-btn" style="padding:6px 22px;font-size:13px;color:#1F6F5C;border-color:#1F6F5C" data-act="openSettle" data-id="' + person.id + '">结清</span></div>' : '') +
+      '</div>' +
+      '<div class="card"><div class="section-head"><span class="section-title">流水</span></div>' +
+      (rows.length ? rows.map(r =>
+        '<div class="field field-row"><div class="grow" style="min-width:0"><div style="font-size:13px">' + esc(r.title) + '</div>' +
+        '<div style="font-size:11px;color:#9AA3AF">' + fmtDate(r.date) + (r.sub ? ' · ' + esc(r.sub) : '') + '</div></div>' +
+        '<div style="text-align:right"><div class="num ' + r.cls + '" style="font-weight:600">' + yuan(r.amount) + '</div>' +
+        (r.pending ? '<span class="mini-btn" style="margin-top:4px" data-act="openReimburse" data-id="' + r.key + '" data-amount="' + r.amount + '">报销到账</span>' : '') +
+        (r.out > 0 ? '<span class="mini-btn" style="margin-top:4px" data-act="openLoanRepay" data-id="' + r.key + '">' + r.repayLabel + '</span>' : '') +
+        (r.out === 0 && r.repayLabel ? '<div style="font-size:11px;color:#1F9D55;margin-top:2px">已还清</div>' : '') +
+        '</div></div>').join('') : '<div class="empty-inline">还没有往来记录</div>') +
+      '</div>';
+  }
+
+  // ========== 弹层 ==========
+  function modalHtml() {
+    const m = state.modal;
+    if (!m) return '';
+    const wrap = (title, body, foot) =>
+      '<div class="mask" data-act="closeModal"></div><div class="sheet">' +
+      '<div class="sheet-head"><span class="t">' + esc(title) + '</span><span class="x" data-act="closeModal">关闭</span></div>' +
+      body + '<div class="sheet-foot">' + foot + '</div></div>';
+
+    if (m.type === 'confirm') {
+      return '<div class="mask" data-act="closeModal"></div><div class="confirm-box">' +
+        '<div class="t">' + esc(m.title) + '</div><div class="d">' + esc(m.text) + '</div>' +
+        '<div class="confirm-actions"><div class="c" data-act="closeModal">取消</div>' +
+        '<div class="c ' + (m.danger ? 'danger' : 'main') + '" data-act="confirmYes">' + esc(m.confirmText || '确定') + '</div></div></div>';
+    }
+
+    if (m.type === 'split') {
+      const d = state.draft;
+      const parts = splitParts();
+      let selectedIndex = 0;
+      const rows = d.splits.map((s, i) => {
+        const p = perOf(s.person_id);
+        let amountText = '—';
+        if (parts) {
+          if (s.checked) { amountText = yuan(parts[selectedIndex + 1]); selectedIndex += 1; }
+        }
+        return '<div class="split-row"><div class="check ' + (s.checked ? 'on' : '') + '" data-act="splitToggle" data-index="' + i + '">✓</div>' +
+          '<div class="sn">' + esc(p.name) + '</div>' +
+          '<div class="stepper"><div class="b" data-act="splitShares" data-index="' + i + '" data-delta="-1">−</div>' +
+          '<span class="v">' + s.shares + '</span>' +
+          '<div class="b" data-act="splitShares" data-index="' + i + '" data-delta="1">+</div></div>' +
+          '<div class="sa num">' + amountText + '</div></div>';
+      }).join('');
+      const mineText = parts ? yuan(parts[0]) : yuan(safeParse(d.amountText));
+      return '<div class="mask" data-act="closeModal"></div><div class="sheet">' +
+        '<div class="sheet-head"><span class="t">多人分摊</span><span class="x" data-act="closeModal">关闭</span></div>' +
+        '<div class="sheet-note">按份数均分，除不尽的余数给非付款人，我承担 floor 值。我的份额 ' + mineText + '</div>' +
+        '<div class="sheet-body">' + (d.splits.length ? rows : '<div class="empty-inline">还没有往来对象，先到「我的 - 往来」添加</div>') + '</div>' +
+        '<div class="sheet-foot"><div class="btn primary" data-act="closeModal">完成</div></div></div>';
+    }
+
+    if (m.type === 'account') {
+      const f = m.form;
+      return wrap(f.id ? '编辑账户' : '新增账户',
+        '<div class="sheet-body">' +
+        '<div class="field field-row"><span class="field-label">名称</span><input class="txt" id="f-name" maxlength="10" placeholder="如：工资卡" value="' + esc(f.name) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">类型</span>' +
+        '<select class="sel" id="f-type">' + ACCOUNT_TYPE_OPTIONS.map(o =>
+          '<option value="' + o[0] + '"' + (o[0] === f.type ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">初始余额</span>' +
+        '<input class="txt" id="f-initial" inputmode="decimal" placeholder="0.00，信用卡可填负数" value="' + esc(f.initial) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">排序</span>' +
+        '<input class="txt" id="f-sort" inputmode="numeric" value="' + esc(f.sort) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">归档</span>' +
+        '<div class="switch ' + (f.archived ? 'on' : '') + '" data-act="formArchived"><div class="knob"></div></div></div>' +
+        '</div>',
+        '<div class="btn primary" data-act="saveAccount">保存</div>');
+    }
+
+    if (m.type === 'category') {
+      const f = m.form;
+      return wrap(f.id ? '编辑分类' : '新增分类',
+        '<div class="sheet-body">' +
+        '<div class="field field-row"><span class="field-label">名称</span><input class="txt" id="f-name" maxlength="8" placeholder="如：宠物" value="' + esc(f.name) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">图标</span>' +
+        '<input class="txt" id="f-icon" maxlength="4" value="' + esc(f.icon) + '" placeholder="一个 emoji"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">排序</span>' +
+        '<input class="txt" id="f-sort" inputmode="numeric" value="' + esc(f.sort) + '"></div>' +
+        (f.isSystem ? '' : '<div class="line"></div><div class="field field-row"><span class="field-label">归档</span>' +
+          '<div class="switch ' + (f.archived ? 'on' : '') + '" data-act="formArchived"><div class="knob"></div></div></div>') +
+        '</div>',
+        '<div class="btn primary" data-act="saveCategory">保存</div>');
+    }
+
+    if (m.type === 'person') {
+      const f = m.form;
+      return wrap(f.id ? '编辑对象' : '新增对象',
+        '<div class="sheet-body">' +
+        '<div class="field field-row"><span class="field-label">姓名</span><input class="txt" id="f-name" maxlength="12" placeholder="如：小王" value="' + esc(f.name) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">关系</span>' +
+        '<select class="sel" id="f-kind">' + PERSON_KIND_OPTIONS.map(o =>
+          '<option value="' + o[0] + '"' + (o[0] === f.kind ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">备注</span>' +
+        '<input class="txt" id="f-note" maxlength="30" placeholder="可选" value="' + esc(f.note) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">归档</span>' +
+        '<div class="switch ' + (f.archived ? 'on' : '') + '" data-act="formArchived"><div class="knob"></div></div></div>' +
+        '</div>',
+        '<div class="btn primary" data-act="savePerson">保存</div>');
+    }
+
+    if (m.type === 'settle') {
+      const f = m.form;
+      return wrap(f.title,
+        '<div class="sheet-body">' +
+        '<div class="field field-row"><span class="field-label">金额</span>' +
+        '<input class="txt" id="f-amount" inputmode="decimal" value="' + esc(f.amount) + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">方向</span>' +
+        '<span style="font-size:12px;color:#4E5969">' + (f.direction === 'in' ? '钱进来（对方还款 / 报销到账）' : '钱出去（我还款 / 我垫付）') + '</span></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">账户</span>' +
+        '<select class="sel" id="f-account">' + visibleAccounts().map(a =>
+          '<option value="' + a.id + '">' + esc(a.name) + '</option>').join('') + '</select></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">日期</span>' +
+        '<input class="txt" type="date" id="f-date" value="' + f.date + '"></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">备注</span>' +
+        '<input class="txt" id="f-note" maxlength="50" placeholder="可选" value="' + esc(f.note) + '"></div>' +
+        '</div>',
+        '<div class="btn primary" data-act="saveSettle">' + esc(f.confirmText || '确认结算') + '</div>');
+    }
+
+    if (m.type === 'budget') {
+      const f = m.form;
+      return wrap('设置预算',
+        '<div class="sheet-body">' +
+        '<div class="field field-row"><span class="field-label">预算对象</span>' +
+        '<select class="sel" id="f-target"><option value="">总预算</option>' +
+        catsOf('expense').map(c => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') + '</select></div>' +
+        '<div class="line"></div><div class="field field-row"><span class="field-label">预算金额</span>' +
+        '<input class="txt" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + esc(f.amount) + '"></div>' +
+        '</div>',
+        '<div class="btn primary" data-act="saveBudget">保存</div>');
+    }
+    return '';
+  }
+
+  const ACCOUNT_TYPE_OPTIONS = [['cash', '现金'], ['wechat', '微信'], ['alipay', '支付宝'], ['bank', '银行卡'], ['credit', '信用卡']];
+  const PERSON_KIND_OPTIONS = [['family', '家人'], ['colleague', '同事'], ['friend', '朋友'], ['company', '公司']];
+
+  // ========== 交互 ==========
+  function openModal(type, extra) {
+    state.modal = Object.assign({ type }, extra || {});
+    render();
+  }
+  function closeModal() {
+    state.modal = null;
+    render();
+  }
+  function confirmAction(title, text, fn, danger) {
+    state.pendingConfirm = fn;
+    openModal('confirm', { title, text, danger: !!danger, confirmText: danger ? '删除' : '确定' });
+  }
+
+  const handlers = {
+    back() {
+      if (state.view === 'record' && state.draft && state.draft.id) { go('detail', { id: state.draft.id }); return; }
+      history.back();
+    },
+    tab(el) { go(el.dataset.view); },
+    nav(el) { go(el.dataset.view, { type: el.dataset.type }); },
+    openSearch() {
+      state.kw = '';
+      state.searchType = 'all';
+      state.focusSearch = true;
+      go('search');
+    },
+    clearKw() {
+      state.kw = '';
+      render();
+      const q = document.getElementById('q');
+      if (q) q.focus();
+    },
+    searchScope(el) {
+      state.searchType = el.dataset.type;
+      render();
+    },
+    catDetail(el) {
+      go('category', { id: el.dataset.id, type: el.dataset.type });
+    },
+    month(el) {
+      state.period = shiftPeriod(state.period, Number(el.dataset.delta));
+      render();
+    },
+    statsMode(el) { state.statsMode = el.dataset.mode; render(); },
+    statsPeriod(el) {
+      if (state.statsMode === 'month') {
+        state.period = shiftPeriod(state.period, Number(el.dataset.delta));
+      } else {
+        const y = Number(state.period.slice(0, 4)) + Number(el.dataset.delta);
+        state.period = y + '-' + state.period.slice(5);
+      }
+      render();
+    },
+    detail(el) { go('detail', { id: el.dataset.id }); },
+    editTxn(el) { go('record', { id: el.dataset.id }); },
+
+    setType(el) {
+      const d = state.draft;
+      if (d.type === el.dataset.type) return;
+      d.type = el.dataset.type;
+      const cats = catsOf(d.type);
+      d.categoryId = cats[0] ? cats[0].id : '';
+      d.reimburse = false;
+      render();
+    },
+    setCategory(el) { state.draft.categoryId = el.dataset.id; render(); },
+    setAccount(el) { state.draft.accountId = el.dataset.id; render(); },
+    toggleReimburse() {
+      const d = state.draft;
+      d.reimburse = !d.reimburse;
+      if (d.reimburse && !d.personId) d.personId = activePersons()[0] ? activePersons()[0].id : '';
+      render();
+    },
+    openSplit() { openModal('split'); },
+    splitToggle(el) {
+      const i = Number(el.dataset.index);
+      state.draft.splits[i].checked = !state.draft.splits[i].checked;
+      render();
+    },
+    splitShares(el) {
+      const i = Number(el.dataset.index);
+      const d = state.draft.splits[i];
+      d.shares = Math.min(20, Math.max(1, d.shares + Number(el.dataset.delta)));
+      render();
+    },
+    key(el) {
+      const d = state.draft;
+      let text = d.amountText || '';
+      const k = el.dataset.key;
+      if (k === 'back') { d.amountText = text.slice(0, -1); render(); return; }
+      if (k === '.') {
+        if (text.indexOf('.') >= 0) return;
+        d.amountText = (text || '0') + '.';
+        render();
+        return;
+      }
+      const parts = text.split('.');
+      if (parts.length === 2 && parts[1].length >= 2) return;
+      if (parts.length === 1 && parts[0].length >= 5) return;
+      d.amountText = (text + k).replace(/^0+(\d)/, '$1');
+      render();
+    },
+    saveTxn() { saveTxn(); },
+    deleteTxn(el) {
+      const id = el.dataset.id;
+      const t0 = db.txns.find(x => x.id === id);
+      const repayCount = (t0 && (t0.type === 'loan_out' || t0.type === 'loan_in'))
+        ? db.settlements.filter(s => s.txn_id === id && !s.deleted_at).length : 0;
+      confirmAction('删除这笔账？',
+        '删除后不计入统计，可在「我的 - 数据恢复」里找回。' +
+        (repayCount ? '这笔借款挂着 ' + repayCount + ' 笔还款，会一并删除。' : ''), () => {
+        const t = db.txns.find(x => x.id === id);
+        if (t) {
+          t.deleted_at = Date.now();
+          db.settlements.forEach(s => { if (s.txn_id === id && !s.deleted_at) s.deleted_at = t.deleted_at; });
+          saveDb();
+        }
+        closeModal();
+        toast(repayCount ? '已删除（含 ' + repayCount + ' 笔还款）' : '已删除');
+        setTimeout(() => go('home'), 400);
+      }, true);
+    },
+    restore(el) {
+      const t = db.txns.find(x => x.id === el.dataset.id);
+      if (t) {
+        t.deleted_at = null;
+        db.settlements.forEach(s => { if (s.txn_id === t.id) s.deleted_at = null; });
+        saveDb();
+        toast('已恢复');
+        render();
+      }
+    },
+    setDefaultAccount(el) {
+      db.settings.defaultAccountId = el.value;
+      saveDb();
+      toast('默认账户已更新');
+    },
+    togglePending() {
+      db.settings.pendingIncluded = !db.settings.pendingIncluded;
+      saveDb();
+      render();
+    },
+    newAccount() { openModal('account', { form: { id: '', name: '', type: 'cash', initial: '', sort: String(db.accounts.length), archived: false } }); },
+    editAccount(el) {
+      const a = db.accounts.find(x => x.id === el.dataset.id);
+      if (!a) return;
+      openModal('account', {
+        form: { id: a.id, name: a.name, type: a.type, initial: fmtC(a.initial_balance_cents), sort: String(a.sort), archived: a.archived }
+      });
+    },
+    saveAccount() { saveAccount(); },
+    formArchived() {
+      state.modal.form.archived = !state.modal.form.archived;
+      render();
+    },
+    newCategory(el) {
+      openModal('category', {
+        form: { id: '', name: '', icon: '📦', sort: '99', type: el.dataset.type, archived: false, isSystem: false }
+      });
+    },
+    editCategory(el) {
+      const c = db.categories.find(x => x.id === el.dataset.id);
+      if (!c) return;
+      openModal('category', {
+        form: { id: c.id, name: c.name, icon: c.icon, sort: String(c.sort), type: c.type, archived: c.archived, isSystem: !!c.is_system }
+      });
+    },
+    saveCategory() { saveCategory(); },
+    newPerson() { openModal('person', { form: { id: '', name: '', kind: 'friend', note: '', archived: false } }); },
+    savePerson() { savePerson(); },
+    person(el) { go('person', { id: el.dataset.id }); },
+    openSettle(el) { openSettle(el.dataset.id); },
+    openLoanRepay(el) { openLoanRepay(el.dataset.id); },
+    openReimburse(el) { openReimburse(el.dataset.id, Number(el.dataset.amount)); },
+    saveSettle() { saveSettle(); },
+    openBudget() { openModal('budget', { form: { amount: '' } }); },
+    saveBudget() { saveBudget(); },
+    confirmYes() {
+      const fn = state.pendingConfirm;
+      state.pendingConfirm = null;
+      state.modal = null;
+      if (fn) fn();
+    },
+    closeModal() { closeModal(); },
+    export() { exportCsv(); },
+    demo() {
+      confirmAction('填充示例数据？', '会往当前账本追加一批演示记录（六类动作、分摊、待报销），方便看统计效果。', () => {
+        closeModal();
+        loadDemo();
+      });
+    },
+    clear() {
+      confirmAction('清空全部数据？', '所有账单与结算都会被删除（软删除，可在数据恢复里找回），账户与分类保留。', () => {
+        closeModal();
+        const now = Date.now();
+        db.txns.forEach(t => { if (!t.deleted_at) t.deleted_at = now; });
+        db.settlements.forEach(s => { if (!s.deleted_at) s.deleted_at = now; });
+        saveDb();
+        toast('已清空');
+        setTimeout(() => go('home'), 400);
+      }, true);
+    }
+  };
+
+  function onClick(e) {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.dataset.act;
+    if (el.matches('select, input, textarea')) return;
+    if (act === 'submitConfirm') return;
+    if (handlers[act]) {
+      e.preventDefault();
+      handlers[act](el, e);
+    }
+  }
+
+  function onChange(e) {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.dataset.act;
+    const d = state.draft;
+    if (act === 'pickMonth') { state.period = el.value || state.period; render(); return; }
+    if (act === 'setToAccount') { d.toAccountId = el.value; return; }
+    if (act === 'setPerson') { d.personId = el.value; return; }
+    if (act === 'setDate') { d.dateText = el.value; return; }
+    if (act === 'setDefaultAccount') { handlers.setDefaultAccount(el); return; }
+  }
+
+  function onInput(e) {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    if (el.dataset.act === 'note') state.draft.note = el.value.slice(0, 50);
+    if (el.dataset.act === 'customName') state.draft.customName = el.value.slice(0, 8);
+    if (el.dataset.act === 'searchKw') {
+      state.kw = el.value;
+      const body = document.getElementById('search-body');
+      if (body) body.innerHTML = searchBodyHtml();
+      return;
+    }
+    if (el.dataset.act === 'catKw') {
+      state.catKw = el.value;
+      const body = document.getElementById('cat-body');
+      if (body) body.innerHTML = catBodyHtml();
+    }
+  }
+
+  // ========== 保存逻辑 ==========
+  function saveTxn() {
+    const d = state.draft;
+    if (!d) return;
+    let cents = 0;
+    try { cents = parseYuan(d.amountText); } catch (err) { toast(err.message); return; }
+    if (cents <= 0) { toast('请先输入金额'); return; }
+    const accounts = visibleAccounts();
+    if (!accounts.some(a => a.id === d.accountId)) { toast('请选择账户'); return; }
+    if ((d.type === 'expense' || d.type === 'income') && !d.categoryId) { toast('请选择分类'); return; }
+    if (d.type === 'transfer') {
+      if (!d.toAccountId) { toast('请选择转入账户'); return; }
+      if (d.toAccountId === d.accountId) { toast('转出与转入不能是同一个账户'); return; }
+    }
+    if ((d.type === 'loan_out' || d.type === 'loan_in') && !activePersons().some(p => p.id === d.personId)) { toast('请选择往来对象'); return; }
+    if (d.type === 'expense' && d.reimburse && !activePersons().some(p => p.id === d.personId)) { toast('请选择报销对象'); return; }
+
+    const occurredAt = new Date(d.dateText + 'T00:00:00').getTime() || todayTs();
+    const isFlow = d.type === 'expense' || d.type === 'income';
+    const txn = {
+      id: d.id || uid('txn'),
+      type: d.type,
+      amount_cents: cents,
+      account_id: d.accountId,
+      to_account_id: d.type === 'transfer' ? d.toAccountId : null,
+      category_id: isFlow ? resolveCategoryId(d) : null,
+      person_id: (d.type === 'loan_out' || d.type === 'loan_in')
+        ? (d.personId || null)
+        : (d.type === 'expense' && d.reimburse ? (d.personId || null) : null),
+      note: (d.note || '').slice(0, 50),
+      occurred_at: occurredAt,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      deleted_at: null,
+      reimburse_status: (d.type === 'expense' && d.reimburse) ? 'pending' : 'none'
+    };
+
+    let parts = null;
+    const selected = d.splits.filter(s => s.checked);
+    if (d.type === 'expense' && selected.length) {
+      const pr = splitParts();
+      if (pr) parts = pr.slice(1);
+      const sum = parts.reduce((a, b) => a + b, 0);
+      if (sum > cents) { toast('分摊总额不能超过这笔支出的金额'); return; }
+    }
+
+    if (d.id) {
+      const idx = db.txns.findIndex(t => t.id === d.id);
+      if (idx < 0) { toast('这笔账不存在'); return; }
+      txn.created_at = db.txns[idx].created_at;
+      db.txns[idx] = txn;
+      db.splits = db.splits.filter(s => s.transaction_id !== txn.id);
+    } else {
+      db.txns.push(txn);
+    }
+    if (parts) {
+      selected.forEach((s, i) => {
+        db.splits.push({
+          id: uid('spl'), transaction_id: txn.id, person_id: s.person_id,
+          share_cents: parts[i], direction: 'they_owe'
+        });
+      });
+    }
+    const editId = d.id;
+    saveDb();
+    state.draft = null;
+    state.draftKey = '';
+    if (editId) {
+      toast('已更新');
+      setTimeout(() => go('detail', { id: editId }), 300);
+    } else {
+      toast('已记下');
+      setTimeout(() => go('home'), 300);
+    }
+  }
+
+  function saveAccount() {
+    const form = state.modal.form;
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('请填写账户名'); return; }
+    const initialText = document.getElementById('f-initial').value.trim();
+    let initial = 0;
+    try {
+      const negative = initialText.charAt(0) === '-';
+      const abs = negative ? initialText.slice(1) : initialText;
+      initial = parseYuan(abs);
+      if (negative) initial = -initial;
+    } catch (err) { toast(err.message); return; }
+    const patch = {
+      name,
+      type: document.getElementById('f-type').value || 'cash',
+      initial_balance_cents: initial,
+      sort: Number(document.getElementById('f-sort').value) || db.accounts.length,
+      archived: !!form.archived
+    };
+    if (form.id) {
+      const a = db.accounts.find(x => x.id === form.id);
+      if (!a) { toast('账户不存在'); return; }
+      Object.assign(a, patch);
+    } else {
+      db.accounts.push(Object.assign({ id: uid('acc'), created_at: Date.now() }, patch));
+    }
+    saveDb();
+    closeModal();
+    toast('已保存');
+    render();
+  }
+
+  function saveCategory() {
+    const form = state.modal.form;
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('请填写分类名'); return; }
+    const patch = {
+      name,
+      icon: document.getElementById('f-icon').value.trim() || '📦',
+      sort: Number(document.getElementById('f-sort').value) || 99,
+      archived: !!form.archived
+    };
+    if (form.id) {
+      const c = db.categories.find(x => x.id === form.id);
+      if (!c) { toast('分类不存在'); return; }
+      Object.assign(c, patch);
+    } else {
+      const created = Object.assign({
+        id: uid('cat'), type: form.type, color: COLORS[db.categories.length % COLORS.length],
+        is_system: false, sort: 99, archived: false
+      }, patch);
+      db.categories.push(created);
+      if (state.view === 'record' && state.draft && state.draft.type === form.type) {
+        state.draft.categoryId = created.id;
+        state.draft.customName = '';
+      }
+    }
+    saveDb();
+    closeModal();
+    toast('已保存');
+    render();
+  }
+
+  function savePerson() {
+    const form = state.modal.form;
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { toast('请填写姓名'); return; }
+    const patch = {
+      name,
+      kind: document.getElementById('f-kind').value || 'friend',
+      note: document.getElementById('f-note').value.trim().slice(0, 30),
+      archived: !!form.archived
+    };
+    let createdId = '';
+    if (form.id) {
+      const p = db.persons.find(x => x.id === form.id);
+      if (!p) { toast('对象不存在'); return; }
+      Object.assign(p, patch);
+    } else {
+      const np = Object.assign({ id: uid('per'), created_at: Date.now() }, patch);
+      db.persons.push(np);
+      createdId = np.id;
+    }
+    // 在「记一笔」里新建的对象直接选中
+    if (createdId && state.view === 'record' && state.draft) {
+      state.draft.personId = createdId;
+    }
+    saveDb();
+    closeModal();
+    toast('已保存');
+    render();
+  }
+
+  function openSettle(personId) {
+    const balances = ledger.personBalances(db.persons, db.txns, db.splits, db.settlements);
+    const b = balances[personId] || 0;
+    if (b === 0) { toast('这个人已经结清了'); return; }
+    openModal('settle', {
+      form: {
+        personId,
+        title: '结算',
+        direction: b > 0 ? 'in' : 'out',
+        amount: fmtC(Math.abs(b)),
+        date: fmtDate(todayTs()),
+        note: '',
+        txnId: ''
+      }
+    });
+  }
+
+  function openLoanRepay(txnId) {
+    const txn = db.txns.find(t => t.id === txnId);
+    if (!txn) { toast('这笔账不存在'); return; }
+    const out = ledger.loanOutstanding(txn, db.settlements);
+    if (out <= 0) { toast('这笔已经还清了'); return; }
+    const isOut = txn.type === 'loan_out';
+    openModal('settle', {
+      form: {
+        personId: txn.person_id,
+        title: (isOut ? '确认收回' : '确认还款') + ' · ' + perOf(txn.person_id).name,
+        direction: isOut ? 'in' : 'out',
+        amount: fmtC(out),
+        date: fmtDate(todayTs()),
+        note: isOut ? '收回借款' : '归还借款',
+        txnId: txn.id,
+        confirmText: isOut ? '确认已收款' : '确认已还款'
+      }
+    });
+  }
+
+  function openReimburse(txnId, amount) {
+    const txn = db.txns.find(t => t.id === txnId);
+    if (!txn) return;
+    openModal('settle', {
+      form: {
+        personId: txn.person_id,
+        title: '报销到账',
+        direction: 'in',
+        amount: fmtC(amount),
+        date: fmtDate(todayTs()),
+        note: '报销到账',
+        txnId: txnId
+      }
+    });
+  }
+
+  function saveSettle() {
+    const f = state.modal.form;
+    let cents = 0;
+    try { cents = parseYuan(document.getElementById('f-amount').value); } catch (err) { toast(err.message); return; }
+    if (cents <= 0) { toast('请输入结算金额'); return; }
+    const accountId = document.getElementById('f-account').value;
+    const dateText = document.getElementById('f-date').value;
+    const note = document.getElementById('f-note').value.trim().slice(0, 50);
+    if (!accountId) { toast('请先添加一个账户'); return; }
+
+    const base = {
+      person_id: f.personId,
+      direction: f.direction,
+      account_id: accountId,
+      occurred_at: new Date(dateText + 'T00:00:00').getTime() || todayTs(),
+      note,
+      created_at: Date.now(),
+      deleted_at: null
+    };
+    const t = f.txnId ? db.txns.find(x => x.id === f.txnId) : null;
+
+    if (t) {
+      // 单笔还款：直接挂在这笔借出/借入上
+      db.settlements.push(Object.assign({ id: uid('set'), amount_cents: cents, txn_id: t.id, direction: f.direction }, base));
+      if (t.type === 'expense') t.reimburse_status = 'done';
+    } else {
+      // 整人结清：先把钱冲抵这个人还没还的借款，剩下的记一笔普通结算
+      let rest = cents;
+      const openLoans = db.txns.filter(x => !x.deleted_at && x.person_id === f.personId &&
+        ((f.direction === 'in' && x.type === 'loan_out') || (f.direction === 'out' && x.type === 'loan_in')))
+        .sort((a, b) => a.occurred_at - b.occurred_at);
+      openLoans.forEach(x => {
+        if (rest <= 0) return;
+        const out = ledger.loanOutstanding(x, db.settlements);
+        if (out <= 0) return;
+        const take = Math.min(out, rest);
+        db.settlements.push(Object.assign({ id: uid('set'), amount_cents: take, txn_id: x.id }, base));
+        rest -= take;
+      });
+      if (rest > 0) db.settlements.push(Object.assign({ id: uid('set'), amount_cents: rest }, base));
+    }
+
+    saveDb();
+    closeModal();
+    if (t) {
+      const out = ledger.loanOutstanding(t, db.settlements);
+      toast(out === 0 ? '已还清' : '已记录还款，还剩 ' + yuan(out));
+    } else {
+      toast('已结算');
+    }
+    render();
+  }
+
+  function saveBudget() {
+    const target = document.getElementById('f-target') ? document.getElementById('f-target').value : '';
+    let cents = 0;
+    try { cents = parseYuan(document.getElementById('f-amount').value); } catch (err) { toast(err.message); return; }
+    if (cents <= 0) { toast('请输入预算金额'); return; }
+    const existing = db.budgets.find(b => b.period === state.period && (b.category_id || '') === (target || ''));
+    if (existing) existing.amount_cents = cents;
+    else db.budgets.push({ id: uid('bud'), period: state.period, category_id: target || null, amount_cents: cents, created_at: Date.now() });
+    saveDb();
+    closeModal();
+    toast('预算已保存');
+    render();
+  }
+
+  // ========== CSV 导出 ==========
+  function csvCell(v) {
+    const t = v == null ? '' : String(v);
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }
+
+  function exportCsv() {
+    const rows = [['日期', '类型', '金额(元)', '分类', '账户', '转入账户', '对方', '备注', '报销状态', '记录时间']];
+    const entries = [];
+    db.txns.filter(t => !t.deleted_at).forEach(t => {
+      entries.push({
+        d: t.occurred_at,
+        row: [
+          fmtDate(t.occurred_at),
+          TYPE_LABELS[t.type] || t.type,
+          fmtC(t.amount_cents),
+          t.category_id ? catOf(t.category_id).name : '',
+          accOf(t.account_id).name,
+          t.to_account_id ? accOf(t.to_account_id).name : '',
+          t.person_id ? perOf(t.person_id).name : '',
+          t.note || '',
+          t.reimburse_status === 'pending' ? '待报销' : (t.reimburse_status === 'done' ? '已报销' : ''),
+          fmtDT(t.created_at)
+        ]
+      });
+    });
+    db.settlements.filter(s => !s.deleted_at).forEach(s => {
+      entries.push({
+        d: s.occurred_at,
+        row: [
+          fmtDate(s.occurred_at),
+          s.txn_id ? '还款' : '结算',
+          fmtC(s.amount_cents),
+          '',
+          accOf(s.account_id).name,
+          '',
+          perOf(s.person_id).name,
+          s.note || '',
+          '',
+          fmtDT(s.created_at)
+        ]
+      });
+    });
+    entries.sort((a, b) => a.d - b.d).forEach(e => rows.push(e.row));
+    const csv = '\uFEFF' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+    try {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '记一笔-全部账单-' + fmtDate(todayTs()).replace(/-/g, '') + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('已导出 CSV');
+    } catch (err) {
+      toast('这个浏览器不支持直接下载');
+    }
+  }
+
+  // ========== 示例数据 ==========
+  function ensurePerson(name, kind) {
+    let p = db.persons.find(x => x.name === name);
+    if (!p) {
+      p = { id: uid('per'), name, kind, note: '', archived: false, created_at: Date.now() };
+      db.persons.push(p);
+    }
+    return p;
+  }
+  function catByName(name, type) {
+    return db.categories.find(c => c.name === name && c.type === type);
+  }
+  function accByName(name) {
+    return db.accounts.find(a => a.name === name);
+  }
+
+  function loadDemo() {
+    const p = state.period;
+    const { y, m } = parsePeriod(p);
+    const at = (day, hh) => new Date(y, m - 1, day, hh || 12, 0, 0).getTime();
+    const wang = ensurePerson('小王', 'friend');
+    const li = ensurePerson('小李', 'friend');
+    const company = ensurePerson('公司', 'company');
+
+    const add = (type, cents, opts) => {
+      const t = {
+        id: uid('txn'), type, amount_cents: cents,
+        account_id: accByName(opts.acc || '微信').id,
+        to_account_id: opts.to ? accByName(opts.to).id : null,
+        category_id: opts.cat ? catByName(opts.cat, type).id : null,
+        person_id: opts.person ? opts.person.id : null,
+        note: opts.note || '',
+        occurred_at: at(opts.day), created_at: Date.now(), updated_at: Date.now(),
+        deleted_at: null, reimburse_status: opts.reimburse ? 'pending' : 'none'
+      };
+      db.txns.push(t);
+      if (opts.splits) {
+        opts.splits.forEach(s => db.splits.push({
+          id: uid('spl'), transaction_id: t.id, person_id: s.person_id, share_cents: s.share, direction: 'they_owe'
+        }));
+      }
+      return t;
+    };
+
+    // 本月
+    add('income', 800000, { cat: '工资', acc: '银行卡', day: 5, note: '十月工资' });
+    add('income', 20000, { cat: '红包', acc: '微信', day: 8, note: '家人红包' });
+    add('expense', 250000, { cat: '居住', acc: '银行卡', day: 1, note: '房租' });
+    add('expense', 12000, { cat: '买菜', acc: '微信', day: 3, note: '超市' });
+    add('expense', 2800, { cat: '餐饮', acc: '微信', day: 6, note: '咖啡' });
+    add('expense', 600, { cat: '交通', acc: '支付宝', day: 7, note: '地铁' });
+    add('transfer', 100000, { acc: '微信', to: '支付宝', day: 9, note: '微信转支付宝' });
+    add('loan_out', 50000, { acc: '微信', person: wang, day: 10, note: '借给小王的现金' });
+    add('expense', 5000, { acc: '支付宝', person: company, day: 11, note: '打车去客户现场', cat: '交通', reimburse: true });
+    add('expense', 30000, {
+      acc: '微信', cat: '餐饮', day: 12, note: '聚餐 AA',
+      splits: [{ person_id: li.id, share: 7500 }, { person_id: wang.id, share: 7500 }, { person_id: company.id, share: 7500 }]
+    });
+
+    // 前两个月，做趋势用
+    const prev1 = shiftPeriod(p, -1);
+    const d1 = parsePeriod(prev1);
+    const at1 = (day) => new Date(d1.y, d1.m - 1, day, 12, 0, 0).getTime();
+    const addPrev = (type, cents, catName, accName, day, note) => {
+      db.txns.push({
+        id: uid('txn'), type, amount_cents: cents, account_id: accByName(accName).id,
+        to_account_id: null, category_id: catByName(catName, type).id, person_id: null,
+        note, occurred_at: at1(day), created_at: Date.now(), updated_at: Date.now(),
+        deleted_at: null, reimburse_status: 'none'
+      });
+    };
+    addPrev('income', 800000, '工资', '银行卡', 5, '上月工资');
+    addPrev('expense', 250000, '居住', '银行卡', 1, '房租');
+    addPrev('expense', 96000, '餐饮', '微信', 14, '吃饭');
+
+    const prev2 = shiftPeriod(p, -2);
+    const d2 = parsePeriod(prev2);
+    db.txns.push({
+      id: uid('txn'), type: 'income', amount_cents: 760000, account_id: accByName('银行卡').id,
+      to_account_id: null, category_id: catByName('工资', 'income').id, person_id: null,
+      note: '工资', occurred_at: new Date(d2.y, d2.m - 1, 5, 12).getTime(), created_at: Date.now(),
+      updated_at: Date.now(), deleted_at: null, reimburse_status: 'none'
+    });
+    db.txns.push({
+      id: uid('txn'), type: 'expense', amount_cents: 180000, account_id: accByName('银行卡').id,
+      to_account_id: null, category_id: catByName('居住', 'expense').id, person_id: null,
+      note: '房租 + 水电', occurred_at: new Date(d2.y, d2.m - 1, 2, 12).getTime(), created_at: Date.now(),
+      updated_at: Date.now(), deleted_at: null, reimburse_status: 'none'
+    });
+
+    // 预算
+    if (!db.budgets.some(b => b.period === p && !b.category_id)) {
+      db.budgets.push({ id: uid('bud'), period: p, category_id: null, amount_cents: 600000, created_at: Date.now() });
+    }
+    if (!db.budgets.some(b => b.period === p && b.category_id === catByName('餐饮', 'expense').id)) {
+      db.budgets.push({ id: uid('bud'), period: p, category_id: catByName('餐饮', 'expense').id, amount_cents: 80000, created_at: Date.now() });
+    }
+
+    db.settings.demoLoaded = true;
+    saveDb();
+    toast('示例数据已填充');
+    setTimeout(() => go('home'), 400);
+  }
+
+  // ========== 启动 ==========
+  window.addEventListener('hashchange', () => { parseHash(); render(); });
+  window.addEventListener('resize', () => { if (state.view === 'stats') drawCharts(); });
+
+  document.addEventListener('click', onClick);
+  document.addEventListener('change', onChange);
+  document.addEventListener('input', onInput);
+
+  // 桌面端：记录页可直接用键盘输入金额
+  document.addEventListener('keydown', (e) => {
+    if (state.view !== 'record' || state.modal) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    let k = null;
+    if (/^[0-9]$/.test(e.key)) k = e.key;
+    else if (e.key === '.') k = '.';
+    else if (e.key === 'Backspace') k = 'back';
+    else if (e.key === 'Enter') k = 'enter';
+    if (!k) return;
+    e.preventDefault();
+    if (k === 'enter') { handlers.saveTxn(); return; }
+    handlers.key({ dataset: { key: k } });
+  });
+
+  if (migrateLoanAllocs()) saveDb();
+
+  if (!location.hash) {
+    location.hash = '#/home';
+  }
+  parseHash();
+  render();
+})();
+</script>
+</body>
+</html>
